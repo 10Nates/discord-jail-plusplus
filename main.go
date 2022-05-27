@@ -19,11 +19,22 @@ const (
 )
 
 var (
-	rsplit       = regexp.MustCompile(`([^\\])( )`)
-	lastReaction *disgord.MessageReactionAdd
+	rsplit          = regexp.MustCompile(`([^\\])( )`)
+	lastReaction    *disgord.MessageReactionAdd
+	currentJailRole string
 )
 
 func main() {
+	//initialize database
+	InitDB()
+
+	//set jail role to current
+	jroleid, err := GetJailRole()
+	if err != nil {
+		panic("Could not get jail role")
+	}
+	currentJailRole = jroleid
+
 	//load client
 	client := disgord.New(disgord.Config{
 		BotToken: os.Getenv("Token"),

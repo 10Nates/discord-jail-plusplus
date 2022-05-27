@@ -262,6 +262,37 @@ func timeParser(datestring string) (time.Duration, bool, error) {
 	return time.Duration(duration), false, nil
 }
 
-func convertToJailedUser(user *disgord.User, release bool, releasetime time.Duration, reason string, jailer *disgord.User) (*JailedUser, error) {
-	return nil, fmt.Errorf("not done")
+func convertToJailedUser(client *disgord.Client, member *disgord.Member, release bool, releasetime time.Duration, reason string, jailer *disgord.User) (*JailedUser, error) {
+
+	timenow := time.Now()
+	rtime := timenow.Add(releasetime)
+
+	avatarurl, err := member.User.AvatarURL(1024, false)
+	if err != nil {
+		return nil, err
+	}
+
+	mroles := member.Roles
+	roles := ""
+
+	for i := 0; i < len(mroles); i++ {
+		roles += mroles[i].String() + " "
+	}
+
+	roles = strings.TrimSpace(roles) // last space
+
+	newuser := &JailedUser{
+		id:          uint64(member.UserID),
+		release:     release,
+		jailedTime:  timenow,
+		releaseTime: rtime,
+		reason:      reason,
+		jailer:      uint64(jailer.ID),
+		oldnick:     member.Nick,
+		oldpfpurl:   avatarurl,
+		oldroles:    roles,
+		jailrole:    currentJailRole,
+	}
+
+	return newuser, nil
 }

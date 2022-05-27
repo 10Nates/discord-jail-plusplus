@@ -37,6 +37,11 @@ oldroles TEXT,
 jailrole TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS keyvalues (
+	key TEXT NOT NULL PRIMARY KEY,
+	value TEXT NOT NULL,
+);
+
 CREATE TABLE IF NOT EXISTS users (
 id INTEGER NOT NULL PRIMARY KEY,
 jailed INTEGER NOT NULL
@@ -53,7 +58,7 @@ UPDATE users SET jailed=0 WHERE id=?;`
 
 var jaildb *sql.DB
 
-func Init() {
+func InitDB() {
 	db, err := sql.Open("sqlite3", file)
 	if err != nil {
 		panic("Error opening database")
@@ -140,4 +145,28 @@ func RemoveJailedUser(id uint64) (*sql.Result, error) {
 	} else {
 		return &res, fmt.Errorf("more than one user deleted")
 	}
+}
+
+func GetJailRole() (string, error) {
+	row := jaildb.QueryRow("SELECT value FROM keyvalues WHERE key='jailrole'")
+	var roleid string
+	err := row.Scan(roleid)
+	if err != nil {
+		return "", err
+	}
+
+	return roleid, nil
+}
+
+func SetJailRole(roleid string) error {
+	_, err := jaildb.Exec(`
+	INSERT INTO keyvalues(key, value) IF NOT EXISTS (SELECT * FROM keyvalues WHERE key='jailrole') VALUES ('jailrole', ?);
+	UPDATE keyvalues SET value=? WHERE key='jailrole';
+	`, roleid, roleid)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
 }
