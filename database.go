@@ -1,4 +1,4 @@
-package database
+package main
 
 import (
 	"database/sql"
@@ -10,7 +10,7 @@ import (
 
 const file string = "jail.db"
 
-type jailedUser struct {
+type JailedUser struct {
 	id          uint64 // discord ID
 	release     bool   // whether or not to release them
 	jailedTime  time.Time
@@ -67,18 +67,20 @@ func Init() {
 	if err != nil {
 		panic("Could not connect to databse")
 	}
+
+	fmt.Println("Database initialized")
 }
 
-func QueryJail(query string, args ...interface{}) ([]*jailedUser, error) {
+func QueryJail(query string, args ...interface{}) ([]*JailedUser, error) {
 	rows, err := jaildb.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	data := []*jailedUser{}
+	data := []*JailedUser{}
 
 	for rows.Next() {
-		i := &jailedUser{}
+		i := &JailedUser{}
 		err := rows.Scan(i.id, i.release, i.jailedTime, i.releaseTime, i.reason, i.jailer, i.oldnick, i.oldpfpurl, i.oldroles, i.jailrole)
 		if err != nil {
 			return nil, err
@@ -89,7 +91,7 @@ func QueryJail(query string, args ...interface{}) ([]*jailedUser, error) {
 	return data, nil
 }
 
-func FetchJailedUser(id uint64) (*jailedUser, error) {
+func FetchJailedUser(id uint64) (*JailedUser, error) {
 	users, err := QueryJail("SELECT id, release, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole FROM jailed WHERE id=?", id)
 	if err != nil {
 		return nil, err
@@ -104,8 +106,8 @@ func FetchJailedUser(id uint64) (*jailedUser, error) {
 }
 
 //whether or not they are to be released
-func FetchAllJailedUsers(releasableOnly bool) ([]*jailedUser, error) {
-	var users []*jailedUser
+func FetchAllJailedUsers(releasableOnly bool) ([]*JailedUser, error) {
+	var users []*JailedUser
 	var err error
 	if releasableOnly {
 		users, err = QueryJail("SELECT id, release, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole FROM jailed WHERE release=?", 1)
@@ -119,7 +121,7 @@ func FetchAllJailedUsers(releasableOnly bool) ([]*jailedUser, error) {
 	return users, nil
 }
 
-func JailNewUser(i *jailedUser) (*sql.Result, error) {
+func JailNewUser(i *JailedUser) (*sql.Result, error) {
 	res, err := jaildb.Exec(newjaileduser, i.id, i.release, i.jailedTime, i.releaseTime, i.reason, i.jailer, i.oldnick, i.oldpfpurl, i.oldroles, i.jailrole, i.id, i.id, i.id)
 	return &res, err
 }

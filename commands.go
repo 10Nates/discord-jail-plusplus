@@ -261,3 +261,7 @@ func timeParser(datestring string) (time.Duration, bool, error) {
 
 	return time.Duration(duration), false, nil
 }
+
+func convertToJailedUser(user *disgord.User, release bool, releasetime time.Duration, reason string, jailer *disgord.User) (*JailedUser, error) {
+	return nil, fmt.Errorf("not done")
+}
