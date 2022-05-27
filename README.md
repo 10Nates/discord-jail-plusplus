@@ -47,9 +47,6 @@ __LIST OF COMMANDS__
 > Requires admin permissions. Sets the role given to jailed users. Does not change the role for already jailed users.
 > Format: `-setjailrole [roleID]`
 
-### Ping bot
-> Responds "Hello! You can view my command with '-help'"
-
 <br>
 <br>
 

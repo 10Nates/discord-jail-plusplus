@@ -20,7 +20,7 @@ func baseReply(msg *disgord.Message, s *disgord.Session, reply string) {
 
 func helpReply(msg *disgord.Message, s *disgord.Session) {
 	helpe := &disgord.Embed{
-		Title:       "Command Help`",
+		Title:       "Command Help",
 		Description: "----------",
 		Color:       0xff0000, //red
 		Fields: []*disgord.EmbedField{

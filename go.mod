@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/andersfylling/disgord v0.35.1
 	github.com/andersfylling/snowflake/v5 v5.0.1
+	github.com/mattn/go-sqlite3 v1.14.13
 )
 
 require (

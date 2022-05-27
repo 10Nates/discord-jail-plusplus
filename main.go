@@ -62,6 +62,10 @@ func main() {
 
 func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Client) {
 	cstr := msg.Content
+	if !strings.HasPrefix(cstr, "-") {
+		return // this should be automatic but it isn't for some reason
+	}
+
 	rsplitstr := rsplit.ReplaceAllString(cstr, "$1\n")
 	carr := strings.Split(rsplitstr, "\n")
 
@@ -87,7 +91,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		return
 	}
 
-	switch argsl[0] {
+	switch argsl[0][1:] {
 	case "help":
 		helpReply(msg, s)
 	case "jail":
@@ -229,8 +233,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			baseReply(msg, s, "You do not have permissions to use this command.")
 			return
 		}
-
 	default:
-		baseReply(msg, s, "Hello!")
+		return
 	}
 }
