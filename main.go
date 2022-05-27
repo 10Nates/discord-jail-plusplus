@@ -13,8 +13,12 @@ import (
 	"github.com/andersfylling/disgord/std"
 )
 
+const (
+	BotID  = "462051981863682048"
+	prefix = "-"
+)
+
 var (
-	BotID        = "462051981863682048"
 	rsplit       = regexp.MustCompile(`([^\\])( )`)
 	lastReaction *disgord.MessageReactionAdd
 )
@@ -30,7 +34,7 @@ func main() {
 	//startup message
 	client.Gateway().BotReady(func() {
 		fmt.Println("Bot started @ " + time.Now().Local().Format(time.RFC1123))
-		client.UpdateStatusString("@me help")
+		client.UpdateStatusString(prefix + "help")
 	})
 	//filter out unwanted messages
 	content, err := std.NewMsgFilter(context.Background(), client)
@@ -38,11 +42,12 @@ func main() {
 		panic(err)
 	}
 	content.NotByBot(client)
-	content.ContainsBotMention(client)
+	//content.ContainsBotMention(client)
+	content.HasPrefix(prefix)
 
 	//on message with mention
 	client.Gateway().
-		WithMiddleware(content.NotByBot, content.ContainsBotMention).       // filter
+		WithMiddleware(content.NotByBot, content.HasPrefix).                // filter
 		MessageCreate(func(s disgord.Session, evt *disgord.MessageCreate) { // on message
 
 			go parseCommand(evt.Message, &s, client)
@@ -84,7 +89,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 
 	switch argsl[0] {
 	case "help":
-		baseReply(msg, s, "I'll add this later")
+		helpReply(msg, s)
 	case "jail":
 		// owners & administrators are noninclusive
 		if !authorperms.Contains(disgord.PermissionBanMembers) && !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
@@ -181,6 +186,33 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			member = msg.ReferencedMessage.Author
 		} else {
 			baseReply(msg, s, "Please provide a user to free.")
+			return
+		}
+		if err != nil {
+			baseReply(msg, s, "Could not find user. Please try again.")
+			return
+		}
+
+		// found user, continue
+		baseReply(msg, s, "User found: "+member.Tag())
+
+	case "jailreason":
+		// owners & administrators are noninclusive
+		if !authorperms.Contains(disgord.PermissionBanMembers) && !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
+			baseReply(msg, s, "You do not have permissions to use this command.")
+			return
+		}
+
+		var member *disgord.User
+		var err error
+		if len(args) > 2 { // search for user instead of ID
+			member, err = findUser(msg, s, client, true, args[2])
+		} else if len(args) > 1 {
+			member, err = findUser(msg, s, client, false, args[1])
+		} else if msg.Type == disgord.MessageTypeReply {
+			member = msg.ReferencedMessage.Author
+		} else {
+			baseReply(msg, s, "Please provide a user to view.")
 			return
 		}
 		if err != nil {

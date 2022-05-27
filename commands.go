@@ -18,6 +18,38 @@ func baseReply(msg *disgord.Message, s *disgord.Session, reply string) {
 	msg.Reply(context.Background(), *s, reply)
 }
 
+func helpReply(msg *disgord.Message, s *disgord.Session) {
+	helpe := &disgord.Embed{
+		Title:       "Command Help`",
+		Description: "----------",
+		Color:       0xff0000, //red
+		Fields: []*disgord.EmbedField{
+			{
+				Name:  prefix + "help",
+				Value: "Summons a help list.",
+			},
+			{
+				Name:  "-jail",
+				Value: "Requires ban permissions. Puts a user in jail.\n\n*Format (with ID):* `-jail [userID/mention] [time] [reason]`\n*Format (search):* `-jail search [query] [time] [reason]`\n*Format (reply):* `-jail [time] [reason]`",
+			},
+			{
+				Name:  "-unjail / -free",
+				Value: "Requires ban permissions. Takes the user out of jail.\n\n*Format (with ID):* `-unjail [userID/mention]`\n*Format (search):* `-unjail search [query]`\n*Format (reply):* `-unjail`",
+			},
+			{
+				Name:  "-jailreason",
+				Value: "Requires ban permissions. Shows the reason a given user was jailed, as well as the time they have left.\n\n*Format (with ID):* `-jailreason [userID/mention]`\n*Format (search):* `-jailreason search [query]`\n*Format (reply):* `-jailreason`",
+			},
+			{
+				Name:  "-setjailrole",
+				Value: "Requires admin permissions. Sets the role given to jailed users. Does not change the role for already jailed users.\n\n*Format:* `-setjailrole [roleID]`",
+			},
+		},
+	}
+
+	msg.Reply(context.Background(), *s, helpe)
+}
+
 func findUser(msg *disgord.Message, s *disgord.Session, client *disgord.Client, search bool, query string) (user *disgord.User, err error) {
 
 	if search {

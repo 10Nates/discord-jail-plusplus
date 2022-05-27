@@ -18,28 +18,37 @@ Allows you to mention a user, remove all of their roles, give them a special rol
 <br>
 
 __LIST OF COMMANDS__
+
+*Using prefix `-`*
+
 ---
-### `@bot help`
+### `-help`
 > Summons a help list.
  
-### `@bot jail`
+### `-jail`
 > Requires ban permissions. Puts a user in jail.
-> Format (with ID): `@bot jail [userID/mention] [time] [reason]`
-> Format (search): `@bot jail search [query] [time] [reason]`
-> Format (reply): `@bot jail [time] [reason]`
+> Format (with ID): `-jail [userID/mention] [time] [reason]`
+> Format (search): `-jail search [query] [time] [reason]`
+> Format (reply): `-jail [time] [reason]`
  
-### `@bot unjail` or `@bot free`
+### `-unjail` or `-free`
 > Requires ban permissions. Takes the user out of jail.
-> Format (with ID): `@bot unjail [userID/mention]`
-> Format (search): `@bot unjail search [query]`
-> Format (reply): `@bot unjail`
+> Format (with ID): `-unjail [userID/mention]`
+> Format (search): `-unjail search [query]`
+> Format (reply): `-unjail`
 
-### `@bot setjailrole`
+### `-jailreason`
+> Requires ban permissions. Shows the reason a given user was jailed, as well as the time they have left.
+> Format (with ID): `-jailreason [userID/mention]`
+> Format (search): `-jailreason search [query]`
+> Format (reply): `-jailreason`
+
+### `-setjailrole`
 > Requires admin permissions. Sets the role given to jailed users. Does not change the role for already jailed users.
-> Format: `@bot setjailrole [roleID]`
+> Format: `-setjailrole [roleID]`
 
-### Default response
-> Responds "Hello!"
+### Ping bot
+> Responds "Hello! You can view my command with '-help'"
 
 <br>
 <br>
