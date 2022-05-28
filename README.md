@@ -1,4 +1,4 @@
-# Go Discord Jail Plus Plus
+# Go Discord Jail++
 
 ----------------------------------
 
