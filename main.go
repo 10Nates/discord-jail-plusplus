@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -320,6 +321,52 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		if !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
 			baseReply(msg, s, "You do not have permissions to use this command.")
 			return
+		}
+
+		if len(args) > 1 {
+
+			_, err := strconv.ParseUint(args[1], 10, 64)
+			if err != nil {
+				baseReply(msg, s, "Please provide a valid role ID.") // pretest
+				return
+			}
+
+			if currentJailRole == args[1] {
+				baseReply(msg, s, "That is already the jail role.")
+				return
+			}
+
+			roles, err := client.Guild(msg.GuildID).GetRoles()
+			if err != nil {
+				baseReply(msg, s, "Error fetching roles. Please try again.")
+				return
+			}
+
+			roleExists := false
+			for i := 0; i < len(roles); i++ {
+				if roles[i].ID.String() == args[1] {
+					roleExists = true
+					break
+				}
+			}
+
+			if !roleExists {
+				baseReply(msg, s, "Please provide a valid role ID.")
+				return
+			}
+
+			// role exists, continue
+			err = SetJailRole(args[1])
+			if err != nil {
+				baseReply(msg, s, "Error setting role. Please try again.\nError: "+err.Error())
+				return
+			}
+			currentJailRole = args[1]
+
+			baseReply(msg, s, "Successfully changed jail role to "+args[1])
+
+		} else {
+			baseReply(msg, s, "Please provide a role ID to change the jail role to.")
 		}
 	default:
 		return

@@ -2,7 +2,7 @@
 
 ----------------------------------
 
-> Version 1.0.0
+> Version 1.0.1
 
 > Made by Nathan Hedge @ https://almostd.one/
 
@@ -18,6 +18,7 @@ Allows you to mention a user, remove all of their roles, give them a special rol
 <br>
 
 __LIST OF COMMANDS__
+---
 
 *Using prefix `-`*
 
@@ -58,6 +59,9 @@ Requires admin permissions. Sets the role given to jailed users. Does not change
 
 ----------------------------------
 
+<br>
+<br>
+
 __GENERAL DETAILS__
 ---
 > Data is stored in Sqlite.
@@ -69,6 +73,24 @@ __GENERAL DETAILS__
 > Commands do not work in DMs.
 
 > Spaces can be included in individual arguments by using backspaces / Ex: `This\ is\ one\ argument, but\ this\ is\ the\ second`
+
+<br>
+<br>
+
+----------------------------------
+
+<br>
+<br>
+
+__BUILD AND RUN__
+---
+
+> Build the program with `go build -ldflags="-s -w" -o dist/djpp main.go commands.go database.go` (just the standard go build command)
+
+> Program requires `Token` environment variable (the Discord bot token)
+
+<br>
+<br>
 
 ----------------------------------
 

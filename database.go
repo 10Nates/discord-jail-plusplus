@@ -162,7 +162,7 @@ func GetJailRole() (string, error) {
 
 func SetJailRole(roleid string) error {
 	_, err := jaildb.Exec(`
-	INSERT INTO keyvalues(key, value) IF NOT EXISTS (SELECT * FROM keyvalues WHERE key='jailrole') VALUES ('jailrole', ?);
+	INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('jailrole', ?);
 	UPDATE keyvalues SET value=? WHERE key='jailrole';
 	`, roleid, roleid)
 	if err != nil {
