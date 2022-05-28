@@ -104,9 +104,9 @@ func FetchJailedUser(id uint64) (*JailedUser, error) {
 		return nil, err
 	}
 	if len(users) == 0 {
-		return nil, fmt.Errorf("could not find user")
+		return nil, fmt.Errorf("could not find user, please try again")
 	} else if len(users) > 1 {
-		return nil, fmt.Errorf("more than one user found with same id")
+		return nil, fmt.Errorf("more than one user found with same id, please try again")
 	}
 
 	return users[0], nil
@@ -150,7 +150,7 @@ func RemoveJailedUser(id uint64) (*sql.Result, error) {
 }
 
 func GetJailRole() (string, error) {
-	row := jaildb.QueryRow("SELECT value FROM keyvalues WHERE key='jailrole';")
+	row := jaildb.QueryRow("SELECT value FROM keyvalues WHERE key='jailrole'")
 	var roleid string
 	err := row.Scan(&roleid)
 	if err != nil {

@@ -296,3 +296,51 @@ func convertToJailedUser(client *disgord.Client, member *disgord.Member, release
 
 	return newuser, nil
 }
+
+func jailUser(msg *disgord.Message, client *disgord.Client, member *disgord.Member, user *JailedUser) error {
+	memberbuilder := client.Guild(msg.GuildID).Member(member.UserID)
+
+	memberid := member.UserID.String()
+
+	_, err := memberbuilder.Update(&disgord.UpdateMember{
+		Nick:  &memberid,
+		Roles: &[]snowflake.Snowflake{snowflake.ParseSnowflakeString(user.jailrole)},
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = JailNewUser(user)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func freeUser(guildID snowflake.Snowflake, client *disgord.Client, user *JailedUser) error {
+	memberbuilder := client.Guild(guildID).Member(snowflake.Snowflake(user.id))
+
+	rolesStrArray := strings.Split(user.oldroles, " ")
+	roles := []snowflake.Snowflake{}
+
+	for i := 0; i < len(rolesStrArray); i++ {
+		roles = append(roles, snowflake.ParseSnowflakeString(rolesStrArray[i]))
+	}
+
+	_, err := memberbuilder.Update(&disgord.UpdateMember{
+		Nick:  &user.oldnick,
+		Roles: &roles,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	_, err = RemoveJailedUser(user.id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

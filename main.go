@@ -14,11 +14,12 @@ import (
 )
 
 const (
-	BotID  = "462051981863682048"
-	prefix = "-"
+	guildid = "449043801344966666" // basically only used for auto-freeing users (too lazy to add anything to databse)
+	prefix  = "-"
 )
 
 var (
+	BotID           string
 	rsplit          = regexp.MustCompile(`([^\\])( )`)
 	lastReaction    *disgord.MessageReactionAdd
 	currentJailRole string
@@ -34,7 +35,6 @@ func main() {
 		panic(err)
 	}
 	currentJailRole = jroleid
-	fmt.Println(currentJailRole)
 
 	//load client
 	client := disgord.New(disgord.Config{
@@ -45,6 +45,12 @@ func main() {
 
 	//startup message
 	client.Gateway().BotReady(func() {
+		botuser, err := client.CurrentUser().Get()
+		if err != nil {
+			panic(err)
+		}
+		BotID = botuser.ID.String()
+
 		fmt.Println("Bot started @ " + time.Now().Local().Format(time.RFC1123))
 		client.UpdateStatusString(prefix + "help")
 	})
@@ -73,6 +79,10 @@ func main() {
 }
 
 func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Client) {
+	if msg.GuildID.String() != guildid {
+		return // only one database, only one server
+	}
+
 	cstr := msg.Content
 	if !strings.HasPrefix(cstr, "-") {
 		return // this should be automatic but it isn't for some reason
@@ -181,11 +191,31 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			return
 		}
 
-		juser, err := convertToJailedUser(client, member.PartialMember, inf, jailtime, reason, msg.Author)
+		// correct input, continue
+
+		realmember, err := client.Guild(msg.GuildID).Member(member.ID).Get() // need the user member for roles later down the line
 		if err != nil {
 			baseReply(msg, s, "An error occured while gathering data for the user. Please try again.")
+			return
 		}
-		baseReply(msg, s, fmt.Sprint(juser))
+
+		juser, err := convertToJailedUser(client, realmember, inf, jailtime, reason, msg.Author)
+		if err != nil {
+			baseReply(msg, s, "An error occured while gathering data for the user. Please try again.")
+			return
+		}
+
+		err = jailUser(msg, client, realmember, juser)
+		if err != nil {
+			baseReply(msg, s, "An error occured jailing user. Please check permissions and try again.\nError: "+err.Error())
+			return
+		}
+
+		if inf {
+			baseReply(msg, s, "User has been jailed successfully and will not be freed.")
+		} else {
+			baseReply(msg, s, "User has been jailed successfully and will be freed in "+jailtime.String()+".")
+		}
 
 	case "unjail":
 		fallthrough
@@ -214,7 +244,19 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		}
 
 		// found user, continue
-		baseReply(msg, s, "User found: "+member.Tag())
+		user, err := FetchJailedUser(uint64(member.ID))
+		if err != nil {
+			baseReply(msg, s, err.Error())
+			return
+		}
+
+		// found user in jailed database, continue
+		err = freeUser(msg.GuildID, client, user)
+		if err != nil {
+			baseReply(msg, s, "An error occured freeing user. Please check permissions and try again.\nError: "+err.Error())
+		}
+
+		baseReply(msg, s, "User has been freed successfully.")
 
 	case "jailreason":
 		// owners & administrators are noninclusive
@@ -241,7 +283,14 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		}
 
 		// found user, continue
-		baseReply(msg, s, "User found: "+member.Tag())
+		user, err := FetchJailedUser(uint64(member.ID))
+		if err != nil {
+			baseReply(msg, s, err.Error())
+			return
+		}
+
+		// found user in jailed database, continue
+		baseReply(msg, s, fmt.Sprint(user))
 
 	case "setjailrole":
 		// owners are noninclusive
