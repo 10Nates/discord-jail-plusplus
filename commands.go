@@ -73,7 +73,7 @@ func findUser(msg *disgord.Message, s *disgord.Session, client *disgord.Client, 
 
 		avatar, err := match.User.AvatarURL(256, false)
 		if err != nil {
-			avatar = "error"
+			avatar = "https://cdn.discordapp.com/embed/avatars/1.png?size=256"
 		}
 
 		viewuser := &disgord.Embed{
@@ -303,8 +303,9 @@ func jailUser(msg *disgord.Message, client *disgord.Client, member *disgord.Memb
 	memberid := member.UserID.String()
 
 	_, err := memberbuilder.Update(&disgord.UpdateMember{
-		Nick:  &memberid,
-		Roles: &[]snowflake.Snowflake{snowflake.ParseSnowflakeString(user.jailrole)},
+		Nick:           &memberid,
+		Roles:          &[]snowflake.Snowflake{snowflake.ParseSnowflakeString(user.jailrole)},
+		AuditLogReason: "User jailed by " + snowflake.Snowflake(user.jailer).String() + " for " + user.reason,
 	})
 	if err != nil {
 		return err
@@ -338,6 +339,54 @@ func freeUser(guildID snowflake.Snowflake, client *disgord.Client, user *JailedU
 	}
 
 	_, err = RemoveJailedUser(user.id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func displayJailedUser(msg *disgord.Message, s *disgord.Session, user *JailedUser) error {
+
+	release := user.releaseTime.UTC().Format(time.RFC1123)
+	if user.releasable {
+		release = "Never"
+	}
+
+	onick := user.oldnick
+	if onick == "" {
+		onick = "None"
+	}
+
+	viewuser := &disgord.Embed{
+		Title:     "Jailed User " + snowflake.Snowflake(user.id).String(),
+		Thumbnail: &disgord.EmbedThumbnail{URL: user.oldpfpurl},
+		Color:     0xff0000,
+		Fields: []*disgord.EmbedField{
+			{
+				Name:   "Reason",
+				Value:  user.reason,
+				Inline: false,
+			},
+			{
+				Name:   "Release",
+				Value:  release,
+				Inline: true,
+			},
+			{
+				Name:   "Jailer",
+				Value:  snowflake.Snowflake(user.jailer).String(),
+				Inline: true,
+			},
+			{
+				Name:   "Old Nick",
+				Value:  onick,
+				Inline: true,
+			},
+		},
+	}
+
+	_, err := msg.Reply(context.Background(), *s, viewuser)
 	if err != nil {
 		return err
 	}

@@ -290,7 +290,12 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		}
 
 		// found user in jailed database, continue
-		baseReply(msg, s, fmt.Sprint(user))
+		err = displayJailedUser(msg, s, user)
+		if err != nil {
+			panic(err)
+			baseReply(msg, s, "An error occured displaying the user. Please try again.")
+			return
+		}
 
 	case "setjailrole":
 		// owners are noninclusive

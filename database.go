@@ -87,12 +87,12 @@ func QueryJail(query string, args ...interface{}) ([]*JailedUser, error) {
 	data := []*JailedUser{}
 
 	for rows.Next() {
-		i := &JailedUser{}
-		err := rows.Scan(i.id, i.releasable, i.jailedTime, i.releaseTime, i.reason, i.jailer, i.oldnick, i.oldpfpurl, i.oldroles, i.jailrole)
+		i := JailedUser{}
+		err := rows.Scan(&i.id, &i.releasable, &i.jailedTime, &i.releaseTime, &i.reason, &i.jailer, &i.oldnick, &i.oldpfpurl, &i.oldroles, &i.jailrole)
 		if err != nil {
 			return nil, err
 		}
-		data = append(data, i)
+		data = append(data, &i)
 	}
 
 	return data, nil
@@ -104,9 +104,9 @@ func FetchJailedUser(id uint64) (*JailedUser, error) {
 		return nil, err
 	}
 	if len(users) == 0 {
-		return nil, fmt.Errorf("could not find user, please try again")
+		return nil, fmt.Errorf("could not find user in database, please try again")
 	} else if len(users) > 1 {
-		return nil, fmt.Errorf("more than one user found with same id, please try again")
+		return nil, fmt.Errorf("more than one user found with same id, something terrible happened")
 	}
 
 	return users[0], nil
