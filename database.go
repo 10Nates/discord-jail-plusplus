@@ -12,7 +12,7 @@ const file string = "jail.db"
 
 type JailedUser struct {
 	id          uint64 // discord ID
-	release     bool   // whether or not to release them
+	releasable  bool   // whether or not to release them
 	jailedTime  time.Time
 	releaseTime time.Time
 	reason      string
@@ -26,7 +26,7 @@ type JailedUser struct {
 const create string = `
 CREATE TABLE IF NOT EXISTS jailed (
 id INTEGER NOT NULL PRIMARY KEY,
-release INTEGER NOT NULL,
+releasable INTEGER NOT NULL,
 jailedtime DATETIME NOT NULL,
 releasetime DATETIME NOT NULL,
 reason TEXT,
@@ -38,18 +38,20 @@ jailrole TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS keyvalues (
-	key TEXT NOT NULL PRIMARY KEY,
-	value TEXT NOT NULL,
+key TEXT NOT NULL PRIMARY KEY,
+value TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS users (
 id INTEGER NOT NULL PRIMARY KEY,
 jailed INTEGER NOT NULL
-);`
+);
+
+INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('jailrole', '979912673703636992');` // default jail role ID
 
 const newjaileduser string = `
-INSERT INTO jailed(id, release, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-INSERT INTO users(id, jailed) IF NOT EXISTS (SELECT * FROM users WHERE id=?) VALUES (?, 1);
+INSERT INTO jailed(id, releasable, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT OR IGNORE INTO users(id, jailed) VALUES (?, 1);
 UPDATE users SET jailed=1 WHERE id=?;`
 
 const freeuser string = `
@@ -61,16 +63,16 @@ var jaildb *sql.DB
 func InitDB() {
 	db, err := sql.Open("sqlite3", file)
 	if err != nil {
-		panic("Error opening database")
+		panic(err)
 	}
 	if _, err := db.Exec(create); err != nil {
-		panic("Database does not exist & could not be created")
+		panic(err)
 	}
 	jaildb = db
 
 	err = jaildb.Ping()
 	if err != nil {
-		panic("Could not connect to databse")
+		panic(err)
 	}
 
 	fmt.Println("Database initialized")
@@ -86,7 +88,7 @@ func QueryJail(query string, args ...interface{}) ([]*JailedUser, error) {
 
 	for rows.Next() {
 		i := &JailedUser{}
-		err := rows.Scan(i.id, i.release, i.jailedTime, i.releaseTime, i.reason, i.jailer, i.oldnick, i.oldpfpurl, i.oldroles, i.jailrole)
+		err := rows.Scan(i.id, i.releasable, i.jailedTime, i.releaseTime, i.reason, i.jailer, i.oldnick, i.oldpfpurl, i.oldroles, i.jailrole)
 		if err != nil {
 			return nil, err
 		}
@@ -97,7 +99,7 @@ func QueryJail(query string, args ...interface{}) ([]*JailedUser, error) {
 }
 
 func FetchJailedUser(id uint64) (*JailedUser, error) {
-	users, err := QueryJail("SELECT id, release, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole FROM jailed WHERE id=?", id)
+	users, err := QueryJail("SELECT id, releasable, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole FROM jailed WHERE id=?", id)
 	if err != nil {
 		return nil, err
 	}
@@ -115,9 +117,9 @@ func FetchAllJailedUsers(releasableOnly bool) ([]*JailedUser, error) {
 	var users []*JailedUser
 	var err error
 	if releasableOnly {
-		users, err = QueryJail("SELECT id, release, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole FROM jailed WHERE release=?", 1)
+		users, err = QueryJail("SELECT id, releasable, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole FROM jailed WHERE releasable=?", 1)
 	} else {
-		users, err = QueryJail("SELECT id, release, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole FROM jailed")
+		users, err = QueryJail("SELECT id, releasable, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole FROM jailed")
 	}
 	if err != nil {
 		return nil, err
@@ -127,7 +129,7 @@ func FetchAllJailedUsers(releasableOnly bool) ([]*JailedUser, error) {
 }
 
 func JailNewUser(i *JailedUser) (*sql.Result, error) {
-	res, err := jaildb.Exec(newjaileduser, i.id, i.release, i.jailedTime, i.releaseTime, i.reason, i.jailer, i.oldnick, i.oldpfpurl, i.oldroles, i.jailrole, i.id, i.id, i.id)
+	res, err := jaildb.Exec(newjaileduser, i.id, i.releasable, i.jailedTime, i.releaseTime, i.reason, i.jailer, i.oldnick, i.oldpfpurl, i.oldroles, i.jailrole, i.id, i.id)
 	return &res, err
 }
 
@@ -148,9 +150,9 @@ func RemoveJailedUser(id uint64) (*sql.Result, error) {
 }
 
 func GetJailRole() (string, error) {
-	row := jaildb.QueryRow("SELECT value FROM keyvalues WHERE key='jailrole'")
+	row := jaildb.QueryRow("SELECT value FROM keyvalues WHERE key='jailrole';")
 	var roleid string
-	err := row.Scan(roleid)
+	err := row.Scan(&roleid)
 	if err != nil {
 		return "", err
 	}

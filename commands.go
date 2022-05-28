@@ -283,7 +283,7 @@ func convertToJailedUser(client *disgord.Client, member *disgord.Member, release
 
 	newuser := &JailedUser{
 		id:          uint64(member.UserID),
-		release:     release,
+		releasable:  release,
 		jailedTime:  timenow,
 		releaseTime: rtime,
 		reason:      reason,

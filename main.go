@@ -31,9 +31,10 @@ func main() {
 	//set jail role to current
 	jroleid, err := GetJailRole()
 	if err != nil {
-		panic("Could not get jail role")
+		panic(err)
 	}
 	currentJailRole = jroleid
+	fmt.Println(currentJailRole)
 
 	//load client
 	client := disgord.New(disgord.Config{
@@ -180,7 +181,11 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			return
 		}
 
-		baseReply(msg, s, "User found: "+member.Tag()+" | Timestamp: "+jailtime.String()+" | Reason: "+reason)
+		juser, err := convertToJailedUser(client, member.PartialMember, inf, jailtime, reason, msg.Author)
+		if err != nil {
+			baseReply(msg, s, "An error occured while gathering data for the user. Please try again.")
+		}
+		baseReply(msg, s, fmt.Sprint(juser))
 
 	case "unjail":
 		fallthrough
