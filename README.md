@@ -19,10 +19,11 @@ Allows you to mention a user, remove all of their roles, give them a special rol
 
 __LIST OF COMMANDS__
 ---
-
 *Using prefix `-`*
 
----
+<br>
+<br>
+
 ### `-help`
 Summons a help list.
  
