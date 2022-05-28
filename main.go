@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"math"
 	"os"
 	"regexp"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/andersfylling/disgord"
 	"github.com/andersfylling/disgord/std"
+	"github.com/andersfylling/snowflake/v5"
 )
 
 const (
@@ -24,6 +24,17 @@ var (
 	lastReaction    *disgord.MessageReactionAdd
 	currentJailRole string
 )
+
+func checkOnJailedUsers(client *disgord.Client) {
+	gsnow := snowflake.ParseSnowflakeString(guildid)
+	for {
+		time.Sleep(10 * time.Second)
+		err := freeFreeableUsers(gsnow, client)
+		if err != nil {
+			fmt.Println("Error checking on jailed users: ", err)
+		}
+	}
+}
 
 func main() {
 	//initialize database
@@ -45,12 +56,17 @@ func main() {
 
 	//startup message
 	client.Gateway().BotReady(func() {
+		// grab bot ID
 		botuser, err := client.CurrentUser().Get()
 		if err != nil {
 			panic(err)
 		}
 		BotID = botuser.ID.String()
 
+		// start checking on jailed users
+		go checkOnJailedUsers(client)
+
+		// successfully started
 		fmt.Println("Bot started @ " + time.Now().Local().Format(time.RFC1123))
 		client.UpdateStatusString(prefix + "help")
 	})
@@ -67,8 +83,7 @@ func main() {
 	client.Gateway().
 		WithMiddleware(content.NotByBot, content.HasPrefix).                // filter
 		MessageCreate(func(s disgord.Session, evt *disgord.MessageCreate) { // on message
-
-			go parseCommand(evt.Message, &s, client)
+			parseCommand(evt.Message, &s, client)
 		})
 
 	//on message reaction
@@ -182,10 +197,6 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			return
 		}
 
-		if inf {
-			jailtime = math.MaxInt64
-		}
-
 		if jailtime == 0 {
 			baseReply(msg, s, "Invalid amount of time provided. Please try again.")
 			return
@@ -199,12 +210,20 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			return
 		}
 
-		juser, err := convertToJailedUser(client, realmember, inf, jailtime, reason, msg.Author)
+		juser, err := convertToJailedUser(client, realmember, !inf, jailtime, reason, msg.Author)
 		if err != nil {
 			baseReply(msg, s, "An error occured while gathering data for the user. Please try again.")
 			return
 		}
 
+		//check if exists already
+		user, _ := FetchJailedUser(uint64(member.ID))
+		if user != nil {
+			baseReply(msg, s, "User selected is already in jail. Please try again.")
+			return
+		}
+
+		// do the thing
 		err = jailUser(msg, client, realmember, juser)
 		if err != nil {
 			baseReply(msg, s, "An error occured jailing user. Please check permissions and try again.\nError: "+err.Error())
@@ -292,7 +311,6 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		// found user in jailed database, continue
 		err = displayJailedUser(msg, s, user)
 		if err != nil {
-			panic(err)
 			baseReply(msg, s, "An error occured displaying the user. Please try again.")
 			return
 		}

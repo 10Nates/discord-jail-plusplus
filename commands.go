@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -188,25 +189,37 @@ func ITEN(condition bool, str []string, f int64) (time.Duration, error) {
 func timeParser(datestring string) (time.Duration, bool, error) {
 	datestringlow := strings.ToLower(datestring)
 
-	if strings.Contains(datestringlow, "infinite") || strings.Contains(datestringlow, "forever") {
-		return 0, true, nil // return as infinite, skip further analysis
+	if strings.Contains(datestringlow, "inf") || strings.Contains(datestringlow, "ever") {
+		return math.MaxInt64, true, nil // return as infinite, skip further analysis
 	}
 
 	years_str := regyears.FindStringSubmatch(datestringlow)
 	years, err1 := ITEN(len(years_str) > 1, years_str, 0)
 
 	if years > 200 {
-		return 0, true, nil // return as infinite, skip further analysis
+		return math.MaxInt64, true, nil // return as infinite, skip further analysis
 	}
 
 	months_str := regmonths.FindStringSubmatch(datestring)
 	months, err2 := ITEN(len(months_str) > 1, months_str, 0)
 
+	if months > 2400 { // 200 * 12
+		return math.MaxInt64, true, nil // return as infinite, skip further analysis
+	}
+
 	weeks_str := regweeks.FindStringSubmatch(datestringlow)
 	weeks, err3 := ITEN(len(weeks_str) > 1, weeks_str, 0)
 
+	if months > 10400 { // weeks in 200 years
+		return math.MaxInt64, true, nil // return as infinite, skip further analysis
+	}
+
 	days_str := regdays.FindStringSubmatch(datestringlow)
 	days, err4 := ITEN(len(days_str) > 1, days_str, 0)
+
+	if days > 73000 { // days in 200 years
+		return math.MaxInt64, true, nil // return as infinite, skip further analysis
+	}
 
 	hours_str := reghours.FindStringSubmatch(datestringlow)
 	hours, err5 := ITEN(len(hours_str) > 1, hours_str, 0)
@@ -244,19 +257,21 @@ func timeParser(datestring string) (time.Duration, bool, error) {
 	duration += years * 525960 * time.Minute // that many minutes in a year
 	duration += months * 43830 * time.Minute
 	if duration < 0 {
-		return 0, true, nil // return as infinite since there was rollover
+		return math.MaxInt64, true, nil // return as infinite since there was rollover
 	}
 	duration += weeks * 10080 * time.Minute
 	duration += days * 1440 * time.Minute
 	if duration < 0 {
-		return 0, true, nil // return as infinite since there was rollover
+		return math.MaxInt64, true, nil // return as infinite since there was rollover
 	}
 	duration += hours * 60 * time.Minute
-
+	if duration < 0 {
+		return math.MaxInt64, true, nil // return as infinite since there was rollover
+	}
 	duration += mins * time.Minute
 	duration += secs * time.Second
 	if duration < 0 {
-		return 0, true, nil // return as infinite since there was rollover
+		return math.MaxInt64, true, nil // return as infinite since there was rollover
 	}
 
 	return time.Duration(duration), false, nil
@@ -316,6 +331,8 @@ func jailUser(msg *disgord.Message, client *disgord.Client, member *disgord.Memb
 		return err
 	}
 
+	fmt.Println("Jailed user\t", user.id)
+
 	return nil
 }
 
@@ -343,13 +360,15 @@ func freeUser(guildID snowflake.Snowflake, client *disgord.Client, user *JailedU
 		return err
 	}
 
+	fmt.Println("Freed user\t", user.id)
+
 	return nil
 }
 
 func displayJailedUser(msg *disgord.Message, s *disgord.Session, user *JailedUser) error {
 
 	release := user.releaseTime.UTC().Format(time.RFC1123)
-	if user.releasable {
+	if !user.releasable {
 		release = "Never"
 	}
 
@@ -389,6 +408,25 @@ func displayJailedUser(msg *disgord.Message, s *disgord.Session, user *JailedUse
 	_, err := msg.Reply(context.Background(), *s, viewuser)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func freeFreeableUsers(guildID snowflake.Snowflake, client *disgord.Client) error {
+	userlist, err := FetchAllJailedUsers(true)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len(userlist); i++ {
+		user := userlist[i]
+		if time.Now().After(user.releaseTime) {
+			err = freeUser(guildID, client, user)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

@@ -117,7 +117,7 @@ func FetchAllJailedUsers(releasableOnly bool) ([]*JailedUser, error) {
 	var users []*JailedUser
 	var err error
 	if releasableOnly {
-		users, err = QueryJail("SELECT id, releasable, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole FROM jailed WHERE releasable=?", 1)
+		users, err = QueryJail("SELECT id, releasable, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole FROM jailed WHERE releasable=1") // 1 == true
 	} else {
 		users, err = QueryJail("SELECT id, releasable, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole FROM jailed")
 	}
