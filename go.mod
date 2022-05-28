@@ -1,4 +1,4 @@
-module discord-jail
+module discord-jail-plus-plus
 
 go 1.17
 

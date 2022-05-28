@@ -1,4 +1,4 @@
-# Go Discord Jail
+# Go Discord Jail Plus Plus
 
 ----------------------------------
 
@@ -8,9 +8,9 @@
 
 ----------------------------------
 
-__A basic jail bot made for a friend.__
+__An (originally) jail bot made for a friend.__
 
-Allows you to mention a user, remove all of their roles, give them a special role, and then rename them to only their User ID.
+Allows you to mention a user, remove all of their roles, give them a special role, and then rename them to only their User ID. Will later be expanded into more than just jailing.
 
 ----------------------------------
 
