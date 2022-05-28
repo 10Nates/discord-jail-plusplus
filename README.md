@@ -23,28 +23,34 @@ __LIST OF COMMANDS__
 
 ---
 ### `-help`
-> Summons a help list.
+Summons a help list.
  
 ### `-jail`
-> Requires ban permissions. Puts a user in jail.
+Requires ban permissions. Puts a user in jail.
 > Format (with ID): `-jail [userID/mention] [time] [reason]`
+> 
 > Format (search): `-jail search [query] [time] [reason]`
+> 
 > Format (reply): `-jail [time] [reason]`
  
 ### `-unjail` or `-free`
-> Requires ban permissions. Takes the user out of jail.
+Requires ban permissions. Takes the user out of jail. 
 > Format (with ID): `-unjail [userID/mention]`
+> 
 > Format (search): `-unjail search [query]`
+> 
 > Format (reply): `-unjail`
 
 ### `-jailreason`
-> Requires ban permissions. Shows the reason a given user was jailed, as well as the time they have left.
+Requires ban permissions. Shows the reason a given user was jailed, as well as the time they have left.
 > Format (with ID): `-jailreason [userID/mention]`
+> 
 > Format (search): `-jailreason search [query]`
+> 
 > Format (reply): `-jailreason`
 
 ### `-setjailrole`
-> Requires admin permissions. Sets the role given to jailed users. Does not change the role for already jailed users.
+Requires admin permissions. Sets the role given to jailed users. Does not change the role for already jailed users. 
 > Format: `-setjailrole [roleID]`
 
 <br>
