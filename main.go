@@ -32,7 +32,7 @@ func checkOnJailedUsers(client *disgord.Client) {
 		time.Sleep(10 * time.Second)
 		err := freeFreeableUsers(gsnow, client)
 		if err != nil {
-			fmt.Println("Error checking on jailed users: ", err)
+			fmt.Println("Error checking on jailed users:", err)
 		}
 	}
 }
@@ -89,9 +89,16 @@ func main() {
 
 	//on message reaction
 	client.Gateway().
-		MessageReactionAdd(func(s disgord.Session, h *disgord.MessageReactionAdd) { // on reaction
-			lastReaction = h
+		MessageReactionAdd(func(s disgord.Session, evt *disgord.MessageReactionAdd) { // on reaction
+			lastReaction = evt
 		})
+
+	client.Gateway().GuildMemberAdd(func(s disgord.Session, evt *disgord.GuildMemberAdd) { // on guild member join
+		err := rejailAlreadyJailedUser(snowflake.ParseSnowflakeString(guildid), client, evt.Member.UserID)
+		if err != nil {
+			fmt.Println("Error checking & rejailing user upon join:", err)
+		}
+	})
 }
 
 func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Client) {

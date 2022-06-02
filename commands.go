@@ -315,7 +315,7 @@ func convertToJailedUser(client *disgord.Client, member *disgord.Member, release
 func jailUser(msg *disgord.Message, client *disgord.Client, member *disgord.Member, user *JailedUser) error {
 	memberbuilder := client.Guild(msg.GuildID).Member(member.UserID)
 
-	memberid := member.UserID.String()
+	memberid := member.UserID.String() // easier than converting user ID to string
 
 	_, err := memberbuilder.Update(&disgord.UpdateMember{
 		Nick:           &memberid,
@@ -339,6 +339,8 @@ func jailUser(msg *disgord.Message, client *disgord.Client, member *disgord.Memb
 func freeUser(guildID snowflake.Snowflake, client *disgord.Client, user *JailedUser) error {
 	memberbuilder := client.Guild(guildID).Member(snowflake.Snowflake(user.id))
 
+	member, _ := memberbuilder.Get() // user still in server
+
 	rolesStrArray := strings.Split(user.oldroles, " ")
 	roles := []snowflake.Snowflake{}
 
@@ -346,16 +348,21 @@ func freeUser(guildID snowflake.Snowflake, client *disgord.Client, user *JailedU
 		roles = append(roles, snowflake.ParseSnowflakeString(rolesStrArray[i]))
 	}
 
-	_, err := memberbuilder.Update(&disgord.UpdateMember{
-		Nick:  &user.oldnick,
-		Roles: &roles,
-	})
+	if member != nil {
+		_, err := memberbuilder.Update(&disgord.UpdateMember{
+			Nick:           &user.oldnick,
+			Roles:          &roles,
+			AuditLogReason: "User freed either manually or automatically",
+		})
 
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("User gone\t", user.id)
 	}
 
-	_, err = RemoveJailedUser(user.id)
+	_, err := RemoveJailedUser(user.id)
 	if err != nil {
 		return err
 	}
@@ -428,6 +435,32 @@ func freeFreeableUsers(guildID snowflake.Snowflake, client *disgord.Client) erro
 			}
 		}
 	}
+
+	return nil
+}
+
+func rejailAlreadyJailedUser(guildID snowflake.Snowflake, client *disgord.Client, userid snowflake.Snowflake) error {
+
+	user, err := FetchJailedUser(uint64(userid))
+	if err != nil {
+		return nil // user not jailed, skip
+	}
+
+	memberbuilder := client.Guild(guildID).Member(userid)
+
+	userstring := userid.String()
+
+	_, err = memberbuilder.Update(&disgord.UpdateMember{
+		Nick:           &userstring,
+		Roles:          &[]snowflake.Snowflake{snowflake.ParseSnowflakeString(user.jailrole)},
+		AuditLogReason: "User left & rejoined before being freed",
+	})
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Jailed user rejoined\t", user.id)
 
 	return nil
 }
