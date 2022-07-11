@@ -3,14 +3,14 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/andersfylling/snowflake/v5"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 const file string = "jail.db"
+
+// internal data transfer structures
 
 type JailedUser struct {
 	id          uint64 // discord ID
@@ -28,13 +28,15 @@ type JailedUser struct {
 type User struct {
 	id     uint64 // discord ID
 	jailed bool
-	marks  string // mark IDs separated by spaces
+	mark   uint64 // mark ID, 0 if no mark
 }
 
 type Mark struct {
 	id   uint64 // role ID for mark & mark ID
 	name string // refer to mark
 }
+
+// SQL commands
 
 const create string = `
 CREATE TABLE IF NOT EXISTS jailed (
@@ -58,7 +60,7 @@ value TEXT NOT NULL
 CREATE TABLE IF NOT EXISTS users (
 id INTEGER NOT NULL PRIMARY KEY,
 jailed INTEGER NOT NULL,
-marks TEXT
+mark INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS marks (
@@ -66,11 +68,12 @@ id INTEGER NOT NULL PRIMARY KEY,
 name TEXT NOT NULL
 );
 
+INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('markremovedroles', ''); 
 INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('jailrole', '979912673703636992');` // default jail role ID
 
 const newjaileduser string = `
 INSERT INTO jailed(id, releasable, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-INSERT OR IGNORE INTO users(id, jailed) VALUES (?, 1);
+INSERT OR IGNORE INTO users(id, jailed) VALUES (?, 1, 0);
 UPDATE users SET jailed=1 WHERE id=?;`
 
 const freeuser string = `
@@ -86,6 +89,13 @@ INSERT INTO marks(id, name) VALUES (?, ?);`
 
 const delmark string = `
 DELETE FROM marks WHERE id=?`
+
+const setmarkuser string = `
+INSERT OR IGNORE INTO users(id, jailed, mark) VALUES (?, 0, ?);
+UPDATE users SET mark=? WHERE id=?;`
+
+const unmarkuser string = `
+UPDATE users SET mark=0 WHERE id=?;`
 
 var jaildb *sql.DB
 
@@ -260,7 +270,7 @@ func FetchUserByID(id uint64) (*User, error) {
 
 	for rows.Next() {
 		i := User{}
-		err := rows.Scan(&i.id, &i.jailed, &i.marks)
+		err := rows.Scan(&i.id, &i.jailed, &i.mark)
 		if err != nil {
 			return nil, err
 		}
@@ -276,25 +286,20 @@ func FetchUserByID(id uint64) (*User, error) {
 	return users[0], nil
 }
 
-func FetchUserMarks(id uint64) ([]*Mark, error) {
+func FetchUserMark(id uint64) (*Mark, error) {
 	user, err := FetchUserByID(id)
 	if err != nil {
 		return nil, err
 	}
 
-	marks := []*Mark{}
-
-	markliststring := user.marks
-	marklist := strings.Split(markliststring, " ")
-	for i := 0; i < len(marklist); i++ {
-		mark, err := FetchMarkByID(uint64(snowflake.ParseSnowflakeString(marklist[i])))
-		if err != nil {
-			return nil, err
-		}
-		marks = append(marks, mark)
+	umark := user.mark
+	if umark == 0 {
+		return nil, nil // No mark but no error either
 	}
 
-	return marks, nil
+	mark, err := FetchMarkByID(umark)
+
+	return mark, err
 }
 
 func AddMark(id uint64, name string) (*sql.Result, error) {
@@ -305,4 +310,33 @@ func AddMark(id uint64, name string) (*sql.Result, error) {
 func DeleteMark(id uint64) (*sql.Result, error) {
 	res, err := jaildb.Exec(delmark, id)
 	return &res, err
+}
+
+func SetUserMarkfromName(userid uint64, markname string) (*sql.Result, error) {
+	mark, err := FetchMarkByName(markname)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := jaildb.Exec(setmarkuser, userid, mark.id, mark.id, userid)
+	return &res, err
+}
+
+func DeleteMarkfromUser(userid uint64) (*sql.Result, error) {
+	_, err := FetchUserByID(userid)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := jaildb.Exec(unmarkuser, userid)
+	return &res, err
+}
+
+//"marked removed roles" are roles that get removed if you get marked and added back if you are unmarked.
+func AddMarkedRemovedRole(roleid uint64) error {
+	return nil
+}
+
+func RemoveMarkedRemovedRole(roleid uint64) error {
+	return nil
 }

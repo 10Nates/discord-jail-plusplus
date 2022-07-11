@@ -84,6 +84,7 @@ func main() {
 	client.Gateway().
 		WithMiddleware(content.NotByBot, content.HasPrefix).                // filter
 		MessageCreate(func(s disgord.Session, evt *disgord.MessageCreate) { // on message
+			// This is in a different thread, I checked
 			parseCommand(evt.Message, &s, client)
 		})
 
