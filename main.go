@@ -93,12 +93,13 @@ func main() {
 			lastReaction = evt
 		})
 
-	client.Gateway().GuildMemberAdd(func(s disgord.Session, evt *disgord.GuildMemberAdd) { // on guild member join
-		err := rejailAlreadyJailedUser(snowflake.ParseSnowflakeString(guildid), client, evt.Member.UserID)
-		if err != nil {
-			fmt.Println("Error checking & rejailing user upon join:", err)
-		}
-	})
+	client.Gateway().
+		GuildMemberAdd(func(s disgord.Session, evt *disgord.GuildMemberAdd) { // on guild member join
+			err := rejailAlreadyJailedUser(snowflake.ParseSnowflakeString(guildid), client, evt.Member.UserID)
+			if err != nil {
+				fmt.Println("Error checking & rejailing user upon join:", err)
+			}
+		})
 }
 
 func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Client) {

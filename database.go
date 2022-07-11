@@ -3,8 +3,10 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/andersfylling/snowflake/v5"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -21,6 +23,17 @@ type JailedUser struct {
 	oldpfpurl   string // profile picture at time of jail
 	oldroles    string // role IDs separated by spaces
 	jailrole    string // role given to them when they were jailed
+}
+
+type User struct {
+	id     uint64 // discord ID
+	jailed bool
+	marks  string // mark IDs separated by spaces
+}
+
+type Mark struct {
+	id   uint64 // role ID for mark & mark ID
+	name string // refer to mark
 }
 
 const create string = `
@@ -44,7 +57,13 @@ value TEXT NOT NULL
 
 CREATE TABLE IF NOT EXISTS users (
 id INTEGER NOT NULL PRIMARY KEY,
-jailed INTEGER NOT NULL
+jailed INTEGER NOT NULL,
+marks TEXT
+);
+
+CREATE TABLE IF NOT EXISTS marks (
+id INTEGER NOT NULL PRIMARY KEY,
+name TEXT NOT NULL
 );
 
 INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('jailrole', '979912673703636992');` // default jail role ID
@@ -57,6 +76,16 @@ UPDATE users SET jailed=1 WHERE id=?;`
 const freeuser string = `
 DELETE FROM jailed WHERE id=?;
 UPDATE users SET jailed=0 WHERE id=?;`
+
+const setjailrole string = `
+INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('jailrole', ?);
+UPDATE keyvalues SET value=? WHERE key='jailrole';`
+
+const newmark string = `
+INSERT INTO marks(id, name) VALUES (?, ?);`
+
+const delmark string = `
+DELETE FROM marks WHERE id=?`
 
 var jaildb *sql.DB
 
@@ -77,6 +106,8 @@ func InitDB() {
 
 	fmt.Println("Database initialized")
 }
+
+// jail stuff
 
 func QueryJail(query string, args ...interface{}) ([]*JailedUser, error) {
 	rows, err := jaildb.Query(query, args...)
@@ -161,14 +192,117 @@ func GetJailRole() (string, error) {
 }
 
 func SetJailRole(roleid string) error {
-	_, err := jaildb.Exec(`
-	INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('jailrole', ?);
-	UPDATE keyvalues SET value=? WHERE key='jailrole';
-	`, roleid, roleid)
+	_, err := jaildb.Exec(setjailrole, roleid, roleid)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
 
+// marking stuff
+
+func QueryMarks(query string, args ...interface{}) ([]*Mark, error) {
+	rows, err := jaildb.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	data := []*Mark{}
+
+	for rows.Next() {
+		i := Mark{}
+		err := rows.Scan(&i.id, &i.name)
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, &i)
+	}
+
+	return data, nil
+}
+
+func FetchMarkByName(name string) (*Mark, error) {
+	marks, err := QueryMarks("SELECT id, name FROM jailed WHERE name=?", name)
+	if err != nil {
+		return nil, err
+	}
+	if len(marks) == 0 {
+		return nil, fmt.Errorf("could not find mark in database, please try again")
+	} else if len(marks) > 1 {
+		return nil, fmt.Errorf("more than one mark found with same name, something terrible happened")
+	}
+
+	return marks[0], nil
+}
+
+func FetchMarkByID(id uint64) (*Mark, error) {
+	marks, err := QueryMarks("SELECT id, name FROM jailed WHERE id=?", id)
+	if err != nil {
+		return nil, err
+	}
+	if len(marks) == 0 {
+		return nil, fmt.Errorf("could not find mark in database, please try again")
+	} else if len(marks) > 1 {
+		return nil, fmt.Errorf("more than one mark found with same id, something terrible happened")
+	}
+
+	return marks[0], nil
+}
+
+func FetchUserByID(id uint64) (*User, error) {
+	rows, err := jaildb.Query("SELECT id, jailed, marks FROM users WHERE id=?", id)
+	if err != nil {
+		return nil, err
+	}
+
+	users := []*User{}
+
+	for rows.Next() {
+		i := User{}
+		err := rows.Scan(&i.id, &i.jailed, &i.marks)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &i)
+	}
+
+	if len(users) == 0 {
+		return nil, fmt.Errorf("could not find user in database, please try again")
+	} else if len(users) > 1 {
+		return nil, fmt.Errorf("more than one user found with same id, something terrible happened")
+	}
+
+	return users[0], nil
+}
+
+func FetchUserMarks(id uint64) ([]*Mark, error) {
+	user, err := FetchUserByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	marks := []*Mark{}
+
+	markliststring := user.marks
+	marklist := strings.Split(markliststring, " ")
+	for i := 0; i < len(marklist); i++ {
+		mark, err := FetchMarkByID(uint64(snowflake.ParseSnowflakeString(marklist[i])))
+		if err != nil {
+			return nil, err
+		}
+		marks = append(marks, mark)
+	}
+
+	return marks, nil
+}
+
+func AddMark(id uint64, name string) (*sql.Result, error) {
+	res, err := jaildb.Exec(newmark, id, name)
+	return &res, err
+}
+
+func DeleteMark(id uint64) (*sql.Result, error) {
+	res, err := jaildb.Exec(delmark, id)
+	return &res, err
 }
