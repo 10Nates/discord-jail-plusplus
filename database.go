@@ -3,8 +3,10 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/andersfylling/snowflake/v5"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -28,7 +30,7 @@ type JailedUser struct {
 type MarkedUser struct {
 	id       uint64 // discord ID
 	marker   uint64 // person who marked them
-	markrole string // role given to them when they were marked
+	markrole uint64 // role given to them when they were marked
 	oldroles string // role IDs separated by spaces
 }
 
@@ -45,7 +47,7 @@ type Mark struct {
 
 // SQL commands
 
-const create string = `
+const create string = `--sql
 CREATE TABLE IF NOT EXISTS jailed (
 id INTEGER NOT NULL PRIMARY KEY,
 releasable INTEGER NOT NULL,
@@ -62,8 +64,12 @@ jailrole TEXT NOT NULL
 CREATE TABLE IF NOT EXISTS marked (
 id INTEGER NOT NULL PRIMARY KEY,
 marker INTEGER NOT NULL,
-markrole INTEGER NOT NULL FOREIGN KEY REFERENCES marks(id),
-oldroles TEXT
+markrole INTEGER NOT NULL,
+oldroles TEXT,
+FOREIGN KEY (markrole)
+	REFERENCES marks(id)
+		ON UPDATE RESTRICT
+		ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS keyvalues (
@@ -82,36 +88,53 @@ id INTEGER NOT NULL PRIMARY KEY,
 name TEXT NOT NULL
 );
 
-INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('markremovedroles', ''); 
-INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('jailrole', '979912673703636992');` // default jail role ID
+INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('markremovedroles', ''); -- default roles removed when user is marked
+INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('jailrole', '979912673703636992'); -- default jail role id
+`
 
-const newjaileduser string = `
+const newjaileduser string = `--sql
+BEGIN
 INSERT INTO jailed(id, releasable, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 INSERT OR IGNORE INTO users(id, jailed) VALUES (?, 1, 0);
-UPDATE users SET jailed=1 WHERE id=?;`
+UPDATE users SET jailed=1 WHERE id=?;
+COMMIT`
 
-const freeuser string = `
+const freeuser string = `--sql
+BEGIN
 DELETE FROM jailed WHERE id=?;
-UPDATE users SET jailed=0 WHERE id=?;`
+UPDATE users SET jailed=0 WHERE id=?;
+COMMIT`
 
-const setjailrole string = `
+const setjailrole string = `--sql
+BEGIN
 INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('jailrole', ?);
-UPDATE keyvalues SET value=? WHERE key='jailrole';`
+UPDATE keyvalues SET value=? WHERE key='jailrole';
+COMMIT`
 
-const newmark string = `
+const setmarkremovedrole string = `--sql
+BEGIN
+INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('markremovedroles', ?);
+UPDATE keyvalues SET value=? WHERE key='markremovedroles';
+COMMIT`
+
+const newmark string = `--sql
 INSERT INTO marks(id, name) VALUES (?, ?);`
 
-const delmark string = `
+const delmark string = `--sql
 DELETE FROM marks WHERE id=?`
 
-const setmarkuser string = `
+const setusermark string = `--sql
+BEGIN
 INSERT INTO marked(id, marker, markrole, oldroles) VALUES (?, ?, ?, ?);
 INSERT OR IGNORE INTO users(id, jailed, mark) VALUES (?, 0, 1);
-UPDATE users SET marked=1 WHERE id=?;`
+UPDATE users SET marked=1 WHERE id=?;
+COMMIT`
 
-const unmarkuser string = `
+const unmarkuser string = `--sql
+BEGIN
 DELETE FROM marked WHERE id=?;
-UPDATE users SET marked=0 WHERE id=?;`
+UPDATE users SET marked=0 WHERE id=?;
+COMMIT`
 
 var jaildb *sql.DB
 
@@ -322,8 +345,18 @@ func FetchUserByID(id uint64) (*User, error) {
 	return users[0], nil
 }
 
-func FetchUserMark(id uint64) (*Mark, error) {
-	return nil, nil //TODO
+func FetchMarkedUser(id uint64) (*MarkedUser, error) {
+	users, err := QueryMarkedUsers("SELECT id, marker, markrole, oldroles FROM marked WHERE id=?", id)
+	if err != nil {
+		return nil, err
+	}
+	if len(users) == 0 {
+		return nil, fmt.Errorf("could not find user in database, please try again")
+	} else if len(users) > 1 {
+		return nil, fmt.Errorf("more than one user found with same id, something terrible happened")
+	}
+
+	return users[0], nil
 }
 
 func AddMark(id uint64, name string) (*sql.Result, error) {
@@ -336,24 +369,69 @@ func DeleteMark(id uint64) (*sql.Result, error) {
 	return &res, err
 }
 
-func SetUserMarkfromName(userid uint64, markname string) (*sql.Result, error) {
-	_, err := FetchMarkByName(markname)
-	if err != nil {
-		return nil, err
-	}
-
-	return nil, nil //TODO
+func MarkNewUser(i *MarkedUser) (*sql.Result, error) {
+	res, err := jaildb.Exec(setusermark, i.id, i.marker, i.markrole, i.oldroles, i.id, i.id)
+	return &res, err
 }
 
 func DeleteMarkfromUser(userid uint64) (*sql.Result, error) {
-	return nil, nil //TODO
+	res, err := jaildb.Exec(unmarkuser, userid, userid)
+	return &res, err
+}
+
+func GetMarkedRemovedRoles() (string, error) {
+	row := jaildb.QueryRow("SELECT value FROM keyvalues WHERE key='markremovedroles'")
+
+	var rolesarrstr string
+	err := row.Scan(&rolesarrstr)
+	if err != nil {
+		return "", err
+	}
+
+	return rolesarrstr, nil
 }
 
 //"marked removed roles" are roles that get removed if you get marked and added back if you are unmarked.
 func AddMarkedRemovedRole(roleid uint64) error {
-	return nil // TODO
+	roleString := snowflake.NewSnowflake(roleid).String()
+	currentroles, err := GetMarkedRemovedRoles()
+	if err != nil {
+		return err
+	}
+
+	if strings.Contains(currentroles, roleString) {
+		return fmt.Errorf("role already a mark-removed role")
+	}
+
+	newroles := currentroles + " " + roleString
+
+	_, err = jaildb.Exec(setmarkremovedrole, newroles, newroles)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func RemoveMarkedRemovedRole(roleid uint64) error {
-	return nil // TODO
+	roleString := snowflake.NewSnowflake(roleid).String()
+	currentroles, err := GetMarkedRemovedRoles()
+	if err != nil {
+		return err
+	}
+
+	if !strings.Contains(currentroles, roleString) {
+		return fmt.Errorf("role already not a mark-removed role")
+	}
+
+	newrolesdirty := strings.ReplaceAll(currentroles, roleString, "")
+	newrolesspotted := strings.TrimSpace(newrolesdirty)
+	newrolesclean := strings.ReplaceAll(newrolesspotted, "  ", " ")
+
+	_, err = jaildb.Exec(setmarkremovedrole, newrolesclean, newrolesclean)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
