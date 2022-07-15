@@ -25,10 +25,17 @@ type JailedUser struct {
 	jailrole    string // role given to them when they were jailed
 }
 
+type MarkedUser struct {
+	id       uint64 // discord ID
+	marker   uint64 // person who marked them
+	markrole string // role given to them when they were marked
+	oldroles string // role IDs separated by spaces
+}
+
 type User struct {
 	id     uint64 // discord ID
 	jailed bool
-	mark   uint64 // mark ID, 0 if no mark
+	marked bool
 }
 
 type Mark struct {
@@ -52,6 +59,13 @@ oldroles TEXT,
 jailrole TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS marked (
+id INTEGER NOT NULL PRIMARY KEY,
+marker INTEGER NOT NULL,
+markrole INTEGER NOT NULL FOREIGN KEY REFERENCES marks(id),
+oldroles TEXT
+);
+
 CREATE TABLE IF NOT EXISTS keyvalues (
 key TEXT NOT NULL PRIMARY KEY,
 value TEXT NOT NULL
@@ -60,7 +74,7 @@ value TEXT NOT NULL
 CREATE TABLE IF NOT EXISTS users (
 id INTEGER NOT NULL PRIMARY KEY,
 jailed INTEGER NOT NULL,
-mark INTEGER NOT NULL
+marked INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS marks (
@@ -91,11 +105,13 @@ const delmark string = `
 DELETE FROM marks WHERE id=?`
 
 const setmarkuser string = `
-INSERT OR IGNORE INTO users(id, jailed, mark) VALUES (?, 0, ?);
-UPDATE users SET mark=? WHERE id=?;`
+INSERT INTO marked(id, marker, markrole, oldroles) VALUES (?, ?, ?, ?);
+INSERT OR IGNORE INTO users(id, jailed, mark) VALUES (?, 0, 1);
+UPDATE users SET marked=1 WHERE id=?;`
 
 const unmarkuser string = `
-UPDATE users SET mark=0 WHERE id=?;`
+DELETE FROM marked WHERE id=?;
+UPDATE users SET marked=0 WHERE id=?;`
 
 var jaildb *sql.DB
 
@@ -232,6 +248,26 @@ func QueryMarks(query string, args ...interface{}) ([]*Mark, error) {
 	return data, nil
 }
 
+func QueryMarkedUsers(query string, args ...interface{}) ([]*MarkedUser, error) {
+	rows, err := jaildb.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	data := []*MarkedUser{}
+
+	for rows.Next() {
+		i := MarkedUser{}
+		err := rows.Scan(&i.id, &i.marker, &i.markrole, &i.oldroles)
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, &i)
+	}
+
+	return data, nil
+}
+
 func FetchMarkByName(name string) (*Mark, error) {
 	marks, err := QueryMarks("SELECT id, name FROM jailed WHERE name=?", name)
 	if err != nil {
@@ -261,7 +297,7 @@ func FetchMarkByID(id uint64) (*Mark, error) {
 }
 
 func FetchUserByID(id uint64) (*User, error) {
-	rows, err := jaildb.Query("SELECT id, jailed, marks FROM users WHERE id=?", id)
+	rows, err := jaildb.Query("SELECT id, jailed, marked FROM users WHERE id=?", id)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +306,7 @@ func FetchUserByID(id uint64) (*User, error) {
 
 	for rows.Next() {
 		i := User{}
-		err := rows.Scan(&i.id, &i.jailed, &i.mark)
+		err := rows.Scan(&i.id, &i.jailed, &i.marked)
 		if err != nil {
 			return nil, err
 		}
@@ -287,19 +323,7 @@ func FetchUserByID(id uint64) (*User, error) {
 }
 
 func FetchUserMark(id uint64) (*Mark, error) {
-	user, err := FetchUserByID(id)
-	if err != nil {
-		return nil, err
-	}
-
-	umark := user.mark
-	if umark == 0 {
-		return nil, nil // No mark but no error either
-	}
-
-	mark, err := FetchMarkByID(umark)
-
-	return mark, err
+	return nil, nil //TODO
 }
 
 func AddMark(id uint64, name string) (*sql.Result, error) {
@@ -313,30 +337,23 @@ func DeleteMark(id uint64) (*sql.Result, error) {
 }
 
 func SetUserMarkfromName(userid uint64, markname string) (*sql.Result, error) {
-	mark, err := FetchMarkByName(markname)
+	_, err := FetchMarkByName(markname)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := jaildb.Exec(setmarkuser, userid, mark.id, mark.id, userid)
-	return &res, err
+	return nil, nil //TODO
 }
 
 func DeleteMarkfromUser(userid uint64) (*sql.Result, error) {
-	_, err := FetchUserByID(userid)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := jaildb.Exec(unmarkuser, userid)
-	return &res, err
+	return nil, nil //TODO
 }
 
 //"marked removed roles" are roles that get removed if you get marked and added back if you are unmarked.
 func AddMarkedRemovedRole(roleid uint64) error {
-	return nil
+	return nil // TODO
 }
 
 func RemoveMarkedRemovedRole(roleid uint64) error {
-	return nil
+	return nil // TODO
 }
