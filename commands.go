@@ -464,3 +464,96 @@ func rejailAlreadyJailedUser(guildID snowflake.Snowflake, client *disgord.Client
 
 	return nil
 }
+
+func convertToMarkedUser(client *disgord.Client, member *disgord.Member, marker *disgord.User, mark *Mark) (*MarkedUser, error) {
+	mroles := member.Roles
+	roles := ""
+
+	for i := 0; i < len(mroles); i++ {
+		roles += mroles[i].String() + " "
+	}
+
+	roles = strings.TrimSpace(roles) // last space
+
+	newuser := &MarkedUser{
+		id:       uint64(member.UserID),
+		marker:   uint64(marker.ID),
+		markrole: mark.id,
+		oldroles: roles,
+	}
+
+	return newuser, nil
+}
+
+func markUser(msg *disgord.Message, client *disgord.Client, member *disgord.Member, user *MarkedUser) error {
+
+	removedRolesString, err := GetMarkedRemovedRoles()
+	if err != nil {
+		return err
+	}
+
+	markRoleSnowflake := snowflake.NewSnowflake(user.markrole)
+
+	var newRoles []snowflake.Snowflake
+
+	for i := 0; i < len(member.Roles); i++ {
+		if !strings.Contains(removedRolesString, member.Roles[i].String()) {
+			newRoles = append(newRoles, member.Roles[i])
+		}
+	}
+
+	newRoles = append(newRoles, markRoleSnowflake)
+
+	memberbuilder := client.Guild(msg.GuildID).Member(member.UserID)
+	_, err = memberbuilder.Update(&disgord.UpdateMember{
+		Roles:          &newRoles,
+		AuditLogReason: "User marked by " + snowflake.Snowflake(user.marker).String(),
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = MarkNewUser(user)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Marked user\t", user.id)
+
+	return nil
+}
+
+func unMarkUser(guildID snowflake.Snowflake, client *disgord.Client, user *MarkedUser) error {
+	memberbuilder := client.Guild(guildID).Member(snowflake.Snowflake(user.id))
+
+	member, _ := memberbuilder.Get() // user still in server
+
+	rolesStrArray := strings.Split(user.oldroles, " ")
+	roles := []snowflake.Snowflake{}
+
+	for i := 0; i < len(rolesStrArray); i++ {
+		roles = append(roles, snowflake.ParseSnowflakeString(rolesStrArray[i]))
+	}
+
+	if member != nil {
+		_, err := memberbuilder.Update(&disgord.UpdateMember{
+			Roles:          &roles,
+			AuditLogReason: "User unmarked",
+		})
+
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("User gone\t", user.id)
+	}
+
+	_, err := DeleteMarkfromUser(user.id)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Unmarked user\t", user.id)
+
+	return nil
+}
