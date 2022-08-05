@@ -424,7 +424,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		}
 
 		// get mark object & validate
-		mark, err := FetchMarkByName(markname)
+		mark, _, err := FetchMarkByName(markname)
 		if err != nil {
 			baseReply(msg, s, err.Error())
 			return
@@ -437,7 +437,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			return
 		}
 
-		_, err, code := FetchMarkedUser(uint64(member.ID))
+		_, code, err := FetchMarkedUser(uint64(member.ID))
 		if err != nil && code != 0 {
 			baseReply(msg, s, err.Error())
 			return
@@ -480,7 +480,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		}
 
 		// found user, continue
-		user, err, _ := FetchMarkedUser(uint64(member.ID))
+		user, _, err := FetchMarkedUser(uint64(member.ID))
 		if err != nil {
 			baseReply(msg, s, err.Error())
 			return
@@ -514,11 +514,86 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 
 		} else if len(args) > 3 && argsl[1] == "add" {
 
-			baseReply(msg, s, "TODO")
+			roleid, err := strconv.ParseUint(args[2], 10, 64)
+			if err != nil {
+				baseReply(msg, s, "Please provide a valid role ID.") // pretest
+				return
+			}
+
+			//check if role is taken
+			_, code, err := FetchMarkByID(roleid)
+			if err == nil {
+				baseReply(msg, s, "Mark already exists with the given ID.") // already exists
+				return
+			} else if err != nil && code != 0 {
+				baseReply(msg, s, err.Error()) // something went wrong
+				return
+			}
+
+			markname := argsl[3]
+
+			//check if role is taken part 2
+			_, code, err = FetchMarkByName(markname)
+			if err != nil && code == 0 {
+				baseReply(msg, s, "Mark already exists with the given name.") // already exists
+				return
+			} else if err != nil {
+				baseReply(msg, s, err.Error()) // something went wrong
+				return
+			}
+
+			roles, err := client.Guild(msg.GuildID).GetRoles()
+			if err != nil {
+				baseReply(msg, s, "Error fetching roles. Please try again.")
+				return
+			}
+
+			roleExists := false
+			for i := 0; i < len(roles); i++ {
+				if roles[i].ID.String() == args[1] {
+					roleExists = true
+					break
+				}
+			}
+
+			if !roleExists {
+				baseReply(msg, s, "Please provide a valid role ID.")
+				return
+			}
+
+			// role is valid & mark is not taken
+			_, err = AddMark(roleid, markname)
+			if err != nil {
+				baseReply(msg, s, "Error creating mark. Please try again.\nError: "+err.Error())
+				return
+			}
+
+			baseReply(msg, s, "Mark successfully added.")
 
 		} else if len(args) > 2 && argsl[1] == "remove" {
 
-			baseReply(msg, s, "TODO")
+			roleid, err := strconv.ParseUint(args[2], 10, 64)
+			if err != nil {
+				baseReply(msg, s, "Please provide a valid role ID.") // pretest
+				return
+			}
+
+			//check if role is taken
+			markToBeRemoved, _, err := FetchMarkByID(roleid)
+			if err != nil {
+				baseReply(msg, s, "Mark does not exist. Please try again.") // Doesn't exists
+				return
+			}
+
+			//No need to verify if role actually exists, that would actually be a bad thing for recovery
+			_, err = DeleteMark(markToBeRemoved.id)
+			if err != nil {
+				// the most common error is likely to be SQL telling you that the mark is in use (I hope)
+				baseReply(msg, s, "An error occured deleting the mark. Please try again.\nError: "+err.Error())
+				return
+			}
+
+			baseReply(msg, s, "Mark removed successfully.")
 
 		} else {
 			baseReply(msg, s, "Please provide what you would like to do with mark roles.")
@@ -530,6 +605,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			baseReply(msg, s, "You do not have permissions to use this command.")
 			return
 		}
+
 		baseReply(msg, s, "TODO")
 
 	default:

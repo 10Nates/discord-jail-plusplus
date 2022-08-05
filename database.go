@@ -296,32 +296,32 @@ func GetAllMarks() ([]*Mark, error) {
 	return marks, err
 }
 
-func FetchMarkByName(name string) (*Mark, error) {
+func FetchMarkByName(name string) (*Mark, uint8, error) {
 	marks, err := QueryMarks("SELECT id, name FROM marks WHERE name=?", name)
 	if err != nil {
-		return nil, err
+		return nil, 1, err
 	}
 	if len(marks) == 0 {
-		return nil, fmt.Errorf("could not find mark in database, please try again")
+		return nil, 0, fmt.Errorf("could not find mark in database, please try again")
 	} else if len(marks) > 1 {
-		return nil, fmt.Errorf("more than one mark found with same name, something terrible happened")
+		return nil, 2, fmt.Errorf("more than one mark found with same name, something terrible happened")
 	}
 
-	return marks[0], nil
+	return marks[0], 0, nil
 }
 
-func FetchMarkByID(id uint64) (*Mark, error) {
+func FetchMarkByID(id uint64) (*Mark, uint8, error) {
 	marks, err := QueryMarks("SELECT id, name FROM marks WHERE id=?", id)
 	if err != nil {
-		return nil, err
+		return nil, 1, err
 	}
 	if len(marks) == 0 {
-		return nil, fmt.Errorf("could not find mark in database, please try again")
+		return nil, 0, fmt.Errorf("could not find mark in database, please try again")
 	} else if len(marks) > 1 {
-		return nil, fmt.Errorf("more than one mark found with same id, something terrible happened")
+		return nil, 2, fmt.Errorf("more than one mark found with same id, something terrible happened")
 	}
 
-	return marks[0], nil
+	return marks[0], 0, nil
 }
 
 func FetchUserByID(id uint64) (*User, error) {
@@ -350,18 +350,18 @@ func FetchUserByID(id uint64) (*User, error) {
 	return users[0], nil
 }
 
-func FetchMarkedUser(id uint64) (*MarkedUser, error, uint8) {
+func FetchMarkedUser(id uint64) (*MarkedUser, uint8, error) {
 	users, err := QueryMarkedUsers("SELECT id, marker, markrole, oldroles FROM marked WHERE id=?", id)
 	if err != nil {
-		return nil, err, 1
+		return nil, 1, err
 	}
 	if len(users) == 0 {
-		return nil, fmt.Errorf("could not find user in database, please try again"), 0
+		return nil, 0, fmt.Errorf("could not find user in database, please try again")
 	} else if len(users) > 1 {
-		return nil, fmt.Errorf("more than one user found with same id, something terrible happened"), 2
+		return nil, 2, fmt.Errorf("more than one user found with same id, something terrible happened")
 	}
 
-	return users[0], nil, 0
+	return users[0], 0, nil
 }
 
 func AddMark(id uint64, name string) (*sql.Result, error) {
