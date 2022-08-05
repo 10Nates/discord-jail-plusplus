@@ -408,7 +408,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 				markname = argsl[1]
 			}
 		} else {
-			baseReply(msg, s, "Please provide a user to free.")
+			baseReply(msg, s, "Please provide a user to mark.")
 			return
 		}
 		if err != nil {
@@ -461,13 +461,38 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			baseReply(msg, s, "You do not have permissions to use this command.")
 			return
 		}
-		if len(args) > 1 {
 
-			baseReply(msg, s, "TODO")
-
+		var member *disgord.User
+		var err error
+		if len(args) > 1 && args[1] == "search" && len(args) > 2 { // search for user instead of ID
+			member, err = findUser(msg, s, client, true, args[2])
+		} else if len(args) > 1 {
+			member, err = findUser(msg, s, client, false, args[1])
+		} else if msg.Type == disgord.MessageTypeReply {
+			member = msg.ReferencedMessage.Author
 		} else {
 			baseReply(msg, s, "Please provide a user to unmark.")
+			return
 		}
+		if err != nil {
+			baseReply(msg, s, "Could not find user. Please try again.")
+			return
+		}
+
+		// found user, continue
+		user, err, _ := FetchMarkedUser(uint64(member.ID))
+		if err != nil {
+			baseReply(msg, s, err.Error())
+			return
+		}
+
+		// found user in marked database, continue
+		err = unMarkUser(msg.GuildID, client, user)
+		if err != nil {
+			baseReply(msg, s, "An error occured unmarking user. Please check permissions and try again.\nError: "+err.Error())
+		}
+
+		baseReply(msg, s, "User has been successfully unmarked.")
 
 	case "markroles":
 		// owners & administrators are noninclusive
