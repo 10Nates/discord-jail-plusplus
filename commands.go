@@ -557,3 +557,23 @@ func unMarkUser(guildID snowflake.Snowflake, client *disgord.Client, user *Marke
 
 	return nil
 }
+
+func getMarksFormatted() (string, error) {
+	marks, err := GetAllMarks()
+	if err != nil {
+		return "", err
+	}
+
+	list := ""
+
+	for _, m := range marks {
+		list += "\n" + m.name + " - " + snowflake.NewSnowflake(m.id).String()
+	}
+
+	if list == "" {
+		return "", fmt.Errorf("no marks in system")
+	}
+
+	return list, nil
+
+}

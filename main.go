@@ -141,6 +141,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 	switch argsl[0][1:] {
 	case "help":
 		helpReply(msg, s)
+
 	case "jail":
 		// owners & administrators are noninclusive
 		if !authorperms.Contains(disgord.PermissionBanMembers) && !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
@@ -257,7 +258,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 
 		var member *disgord.User
 		var err error
-		if len(args) > 2 { // search for user instead of ID
+		if len(args) > 1 && args[1] == "search" && len(args) > 2 { // search for user instead of ID
 			member, err = findUser(msg, s, client, true, args[2])
 		} else if len(args) > 1 {
 			member, err = findUser(msg, s, client, false, args[1])
@@ -377,6 +378,135 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		} else {
 			baseReply(msg, s, "Please provide a role ID to change the jail role to.")
 		}
+
+	case "mark":
+		// owners & administrators are noninclusive
+		if !authorperms.Contains(disgord.PermissionBanMembers) && !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
+			baseReply(msg, s, "You do not have permissions to use this command.")
+			return
+		}
+
+		var member *disgord.User
+		var markname string
+		var err error
+		if len(args) > 1 && args[1] == "search" && len(args) > 2 { // search for user instead of ID
+			member, err = findUser(msg, s, client, true, args[2])
+
+			if len(args) > 3 {
+				markname = argsl[3]
+			}
+		} else if len(args) > 1 {
+			member, err = findUser(msg, s, client, false, args[1])
+
+			if len(args) > 2 {
+				markname = argsl[2]
+			}
+		} else if msg.Type == disgord.MessageTypeReply {
+			member = msg.ReferencedMessage.Author
+
+			if len(args) > 1 {
+				markname = argsl[1]
+			}
+		} else {
+			baseReply(msg, s, "Please provide a user to free.")
+			return
+		}
+		if err != nil {
+			baseReply(msg, s, "Could not find user. Please try again.")
+			return
+		}
+
+		// found user, continue
+		realmember, err := client.Guild(msg.GuildID).Member(member.ID).Get() // need the user member for roles later down the line
+		if err != nil {
+			baseReply(msg, s, "An error occured while gathering data for the user. Please try again.")
+			return
+		}
+
+		// get mark object & validate
+		mark, err := FetchMarkByName(markname)
+		if err != nil {
+			baseReply(msg, s, err.Error())
+			return
+		}
+
+		// get markeduser object + roles
+		markedUser, err := convertToMarkedUser(client, realmember, msg.Author, mark)
+		if err != nil {
+			baseReply(msg, s, err.Error())
+			return
+		}
+
+		_, err, code := FetchMarkedUser(uint64(member.ID))
+		if err != nil && code != 0 {
+			baseReply(msg, s, err.Error())
+			return
+		} else if err == nil && code == 0 {
+			baseReply(msg, s, "User is already marked. Please unmark the user and then mark them again.")
+			return
+		}
+
+		// user is not already marked, mark is valid, we're set
+		err = markUser(msg, client, realmember, markedUser)
+		if err != nil {
+			baseReply(msg, s, "An error occured marking user. Please check permissions and try again.\nError: "+err.Error())
+			return
+		}
+
+		baseReply(msg, s, "User has been successfully marked.")
+
+	case "unmark":
+		// owners & administrators are noninclusive
+		if !authorperms.Contains(disgord.PermissionBanMembers) && !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
+			baseReply(msg, s, "You do not have permissions to use this command.")
+			return
+		}
+		if len(args) > 1 {
+
+			baseReply(msg, s, "TODO")
+
+		} else {
+			baseReply(msg, s, "Please provide a user to unmark.")
+		}
+
+	case "markroles":
+		// owners & administrators are noninclusive
+		if !authorperms.Contains(disgord.PermissionBanMembers) && !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
+			baseReply(msg, s, "You do not have permissions to use this command.")
+			return
+		}
+
+		if len(args) > 1 && argsl[1] == "list" {
+
+			listRoles, err := getMarksFormatted()
+
+			if err != nil {
+				baseReply(msg, s, "Error fetching roles. Please try again.\nError: "+err.Error())
+				return
+			}
+
+			baseReply(msg, s, "List of Mark Roles:"+listRoles)
+
+		} else if len(args) > 3 && argsl[1] == "add" {
+
+			baseReply(msg, s, "TODO")
+
+		} else if len(args) > 2 && argsl[1] == "remove" {
+
+			baseReply(msg, s, "TODO")
+
+		} else {
+			baseReply(msg, s, "Please provide what you would like to do with mark roles.")
+		}
+
+	case "markremovedroles":
+		// owners are noninclusive
+		if !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
+			baseReply(msg, s, "You do not have permissions to use this command.")
+			return
+		}
+		baseReply(msg, s, "TODO")
+
 	default:
 		return
 	}
