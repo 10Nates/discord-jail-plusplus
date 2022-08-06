@@ -55,6 +55,37 @@ Requires ban permissions. Shows the reason a given user was jailed, as well as t
 Requires admin permissions. Sets the role given to jailed users. Does not change the role for already jailed users. 
 > Format: `-setjailrole [roleID]`
 
+### `-mark`
+Requires manage message permissions. Marks a user.
+> Format (with ID): `-mark [userID/mention] [markname]`
+> 
+> Format (search): `-mark search [query] [markname]`
+> 
+> Format (reply): `-mark [markname]`
+
+### `-unmark`
+Requires manage message permissions. Marks a user.
+> Format (with ID): `-unmark [userID/mention]`
+> 
+> Format (search):* `-unmark search [query]`
+> 
+> Format (reply):* `-unmark`
+
+### `-markroles` or `-managemarks`
+Requires admin permissions. Adds & removes marks.
+> Format (list): `-markroles list`
+> 
+> Format (add): `-markroles add [roleID] [markname]`
+> 
+> Format (remove): `-markroles remove [roleID]`
+
+### `-markremovedroles`
+Requires admin permissions. Adds & removes mark-removed roles, roles that get removed when a user is marked.
+> Format (list): `-markremovedroles list`
+> 
+> Format (add/remove): `-markremovedroles [add|remove] [roleID]`"
+
+
 <br>
 <br>
 
@@ -65,7 +96,7 @@ Requires admin permissions. Sets the role given to jailed users. Does not change
 
 __GENERAL DETAILS__
 ---
-> Data is stored in Sqlite.
+> Data is stored in SQLite.
 
 > Time is parsed as ?Y?M?w?d?h?m?s
 

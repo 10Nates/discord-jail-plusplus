@@ -45,6 +45,22 @@ func helpReply(msg *disgord.Message, s *disgord.Session) {
 				Name:  "-setjailrole",
 				Value: "Requires admin permissions. Sets the role given to jailed users. Does not change the role for already jailed users.\n\n*Format:* `-setjailrole [roleID]`",
 			},
+			{
+				Name:  "-mark",
+				Value: "Requires manage message permissions. Marks a user.\n\n*Format (with ID):* `-mark [userID/mention] [markname]`\n*Format (search):* `-mark search [query] [markname]`\n*Format (reply):* `-mark [markname]`",
+			},
+			{
+				Name:  "-unmark",
+				Value: "Requires manage message permissions. Marks a user.\n\n*Format (with ID):* `-unmark [userID/mention]`\n*Format (search):* `-unmark search [query]`\n*Format (reply):* `-unmark`",
+			},
+			{
+				Name:  "-markroles",
+				Value: "Requires admin permissions. Adds & removes marks.\n\n*Format:* `-markroles [list|add|remove] [(add|remove)roleID] [(add) markname]`",
+			},
+			{
+				Name:  "-markremovedroles",
+				Value: "Requires admin permissions. Adds & removes mark-removed roles, roles that get removed when a user is marked.\n\n*Format:* `-markremovedroles [list|add|remove] [(add|remove)roleID]`",
+			},
 		},
 	}
 
@@ -576,4 +592,30 @@ func getMarksFormatted() (string, error) {
 
 	return list, nil
 
+}
+
+func reMarkAlreadyMarkedUser(guildID snowflake.Snowflake, client *disgord.Client, userid snowflake.Snowflake) error {
+
+	user, _, err := FetchMarkedUser(uint64(userid))
+	if err != nil {
+		return nil // user not marked, skip
+	}
+
+	memberbuilder := client.Guild(guildID).Member(userid)
+
+	userstring := userid.String()
+
+	_, err = memberbuilder.Update(&disgord.UpdateMember{
+		Nick:           &userstring,
+		Roles:          &[]snowflake.Snowflake{snowflake.NewSnowflake(user.markrole)},
+		AuditLogReason: "User left & rejoined but was not unmarked",
+	})
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Marked user rejoined\t", user.id)
+
+	return nil
 }

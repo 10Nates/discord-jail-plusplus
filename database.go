@@ -324,6 +324,7 @@ func FetchMarkByID(id uint64) (*Mark, uint8, error) {
 	return marks[0], 0, nil
 }
 
+// This function doesn't end up getting used
 func FetchUserByID(id uint64) (*User, error) {
 	rows, err := jaildb.Query("SELECT id, jailed, marked FROM users WHERE id=?", id)
 	if err != nil {

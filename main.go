@@ -94,11 +94,16 @@ func main() {
 			lastReaction = evt
 		})
 
+	//there is no escape
 	client.Gateway().
 		GuildMemberAdd(func(s disgord.Session, evt *disgord.GuildMemberAdd) { // on guild member join
 			err := rejailAlreadyJailedUser(snowflake.ParseSnowflakeString(guildid), client, evt.Member.UserID)
 			if err != nil {
 				fmt.Println("Error checking & rejailing user upon join:", err)
+			}
+			err = reMarkAlreadyMarkedUser(snowflake.ParseSnowflakeString(guildid), client, evt.Member.UserID)
+			if err != nil {
+				fmt.Println("Error checking & remarking user upon join:", err)
 			}
 		})
 }
@@ -284,6 +289,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		err = freeUser(msg.GuildID, client, user)
 		if err != nil {
 			baseReply(msg, s, "An error occured freeing user. Please check permissions and try again.\nError: "+err.Error())
+			return
 		}
 
 		baseReply(msg, s, "User has been freed successfully.")
@@ -381,7 +387,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 
 	case "mark":
 		// owners & administrators are noninclusive
-		if !authorperms.Contains(disgord.PermissionBanMembers) && !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
+		if !authorperms.Contains(disgord.PermissionManageMessages) && !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
 			baseReply(msg, s, "You do not have permissions to use this command.")
 			return
 		}
@@ -457,7 +463,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 
 	case "unmark":
 		// owners & administrators are noninclusive
-		if !authorperms.Contains(disgord.PermissionBanMembers) && !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
+		if !authorperms.Contains(disgord.PermissionManageMessages) && !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
 			baseReply(msg, s, "You do not have permissions to use this command.")
 			return
 		}
@@ -495,8 +501,10 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		baseReply(msg, s, "User has been successfully unmarked.")
 
 	case "markroles":
+		fallthrough
+	case "managemarks":
 		// owners & administrators are noninclusive
-		if !authorperms.Contains(disgord.PermissionBanMembers) && !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
+		if !authorperms.Contains(disgord.PermissionAll) && !authorperms.Contains(disgord.PermissionAdministrator) {
 			baseReply(msg, s, "You do not have permissions to use this command.")
 			return
 		}
@@ -510,7 +518,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 				return
 			}
 
-			baseReply(msg, s, "List of Mark Roles:"+listRoles)
+			baseReply(msg, s, "List of Marks:"+listRoles)
 
 		} else if len(args) > 3 && argsl[1] == "add" {
 
@@ -596,7 +604,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			baseReply(msg, s, "Mark removed successfully.")
 
 		} else {
-			baseReply(msg, s, "Please provide what you would like to do with mark roles.")
+			baseReply(msg, s, "Please provide what you would like to do with marks.")
 		}
 
 	case "markremovedroles":
@@ -606,7 +614,74 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			return
 		}
 
-		baseReply(msg, s, "TODO")
+		if len(args) > 2 && argsl[1] == "add" {
+			roleid, err := strconv.ParseUint(args[1], 10, 64)
+			if err != nil {
+				baseReply(msg, s, "Please provide a valid role ID.") // pretest
+				return
+			}
+
+			roles, err := client.Guild(msg.GuildID).GetRoles()
+			if err != nil {
+				baseReply(msg, s, "Error fetching roles. Please try again.")
+				return
+			}
+
+			roleExists := false
+			for i := 0; i < len(roles); i++ {
+				if roles[i].ID.String() == args[1] {
+					roleExists = true
+					break
+				}
+			}
+
+			if !roleExists {
+				baseReply(msg, s, "Please provide a valid role ID.") // doesn't exist
+				return
+			}
+
+			// role exists, continue
+
+			err = AddMarkedRemovedRole(roleid)
+			if err != nil {
+				baseReply(msg, s, err.Error())
+				return
+			}
+
+			baseReply(msg, s, "Successfully added mark-removed role.")
+
+		} else if len(args) > 2 && argsl[1] == "remove" {
+			roleid, err := strconv.ParseUint(args[1], 10, 64)
+			if err != nil {
+				baseReply(msg, s, "Please provide a valid role ID.") // pretest
+				return
+			}
+
+			// no need to check if role is valid
+
+			err = RemoveMarkedRemovedRole(roleid)
+			if err != nil {
+				baseReply(msg, s, err.Error())
+				return
+			}
+
+			baseReply(msg, s, "Successfully removed mark-removed role.")
+
+		} else if len(args) > 1 && argsl[1] == "list" {
+
+			plain, err := GetMarkedRemovedRoles()
+			if err != nil {
+				baseReply(msg, s, err.Error())
+				return
+			}
+
+			list := strings.ReplaceAll(plain, " ", "\n")
+
+			baseReply(msg, s, "List of Mark-removed Roles:\n"+list)
+
+		} else {
+			baseReply(msg, s, "Please provide what you would like to do with mark-removed roles.")
+		}
 
 	default:
 		return
