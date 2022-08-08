@@ -577,6 +577,8 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 				return
 			}
 
+			fmt.Println("Added mark\t", markname, roleid)
+
 			baseReply(msg, s, "Mark successfully added.")
 
 		} else if len(args) > 2 && argsl[1] == "remove" {
@@ -601,6 +603,8 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 				baseReply(msg, s, "An error occured deleting the mark. Please try again.\nError: "+err.Error())
 				return
 			}
+
+			fmt.Println("Removed mark\t", markToBeRemoved.name, markToBeRemoved.id)
 
 			baseReply(msg, s, "Mark removed successfully.")
 
@@ -649,6 +653,8 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 				return
 			}
 
+			fmt.Println("Added mark-removed role\t", roleid)
+
 			baseReply(msg, s, "Successfully added mark-removed role.")
 
 		} else if len(args) > 2 && argsl[1] == "remove" {
@@ -665,6 +671,8 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 				baseReply(msg, s, err.Error())
 				return
 			}
+
+			fmt.Println("Removed mark-removed role\t", roleid)
 
 			baseReply(msg, s, "Successfully removed mark-removed role.")
 
