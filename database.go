@@ -93,48 +93,48 @@ INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('jailrole', '979912673703636
 `
 
 const newjaileduser string = `--sql
-BEGIN
+BEGIN TRANSACTION;
 INSERT INTO jailed(id, releasable, jailedtime, releasetime, reason, jailer, oldnick, oldpfpurl, oldroles, jailrole) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-INSERT OR IGNORE INTO users(id, jailed) VALUES (?, 1, 0);
+INSERT OR IGNORE INTO users(id, jailed, marked) VALUES (?, 1, 0);
 UPDATE users SET jailed=1 WHERE id=?;
-COMMIT`
+COMMIT;`
 
 const freeuser string = `--sql
-BEGIN
+BEGIN TRANSACTION;
 DELETE FROM jailed WHERE id=?;
 UPDATE users SET jailed=0 WHERE id=?;
-COMMIT`
+COMMIT;`
 
 const setjailrole string = `--sql
-BEGIN
+BEGIN TRANSACTION;
 INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('jailrole', ?);
 UPDATE keyvalues SET value=? WHERE key='jailrole';
-COMMIT`
+COMMIT;`
 
 const setmarkremovedrole string = `--sql
-BEGIN
+BEGIN TRANSACTION;
 INSERT OR IGNORE INTO keyvalues(key, value) VALUES ('markremovedroles', ?);
 UPDATE keyvalues SET value=? WHERE key='markremovedroles';
-COMMIT`
+COMMIT;`
 
 const newmark string = `--sql
 INSERT INTO marks(id, name) VALUES (?, ?);`
 
 const delmark string = `--sql
-DELETE FROM marks WHERE id=?`
+DELETE FROM marks WHERE id=?;`
 
 const setusermark string = `--sql
-BEGIN
+BEGIN TRANSACTION;
 INSERT INTO marked(id, marker, markrole, oldroles) VALUES (?, ?, ?, ?);
-INSERT OR IGNORE INTO users(id, jailed, mark) VALUES (?, 0, 1);
+INSERT OR IGNORE INTO users(id, jailed, marked) VALUES (?, 0, 1);
 UPDATE users SET marked=1 WHERE id=?;
-COMMIT`
+COMMIT;`
 
 const unmarkuser string = `--sql
-BEGIN
+BEGIN TRANSACTION;
 DELETE FROM marked WHERE id=?;
 UPDATE users SET marked=0 WHERE id=?;
-COMMIT`
+COMMIT;`
 
 var jaildb *sql.DB
 

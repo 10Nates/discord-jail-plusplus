@@ -54,7 +54,7 @@ func helpReply(msg *disgord.Message, s *disgord.Session) {
 				Value: "Requires manage message permissions. Marks a user.\n\n*Format (with ID):* `-unmark [userID/mention]`\n*Format (search):* `-unmark search [query]`\n*Format (reply):* `-unmark`",
 			},
 			{
-				Name:  "-markroles",
+				Name:  "-markroles / -managemarks",
 				Value: "Requires admin permissions. Adds & removes marks.\n\n*Format:* `-markroles [list|add|remove] [(add|remove)roleID] [(add) markname]`",
 			},
 			{

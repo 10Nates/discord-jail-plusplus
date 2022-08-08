@@ -444,10 +444,10 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		}
 
 		_, code, err := FetchMarkedUser(uint64(member.ID))
-		if err != nil && code != 0 {
+		if err != nil && code != 0 { // an error is returned, and it is NOT a no result error
 			baseReply(msg, s, err.Error())
 			return
-		} else if err == nil && code == 0 {
+		} else if err == nil { // No error is returned, so the user exists
 			baseReply(msg, s, "User is already marked. Please unmark the user and then mark them again.")
 			return
 		}
@@ -530,10 +530,10 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 
 			//check if role is taken
 			_, code, err := FetchMarkByID(roleid)
-			if err == nil {
+			if err == nil { // an error is not returned, so there is something in the database
 				baseReply(msg, s, "Mark already exists with the given ID.") // already exists
 				return
-			} else if err != nil && code != 0 {
+			} else if err != nil && code != 0 { // an error is returned, and it is NOT a no result error
 				baseReply(msg, s, err.Error()) // something went wrong
 				return
 			}
@@ -542,10 +542,10 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 
 			//check if role is taken part 2
 			_, code, err = FetchMarkByName(markname)
-			if err != nil && code == 0 {
+			if err == nil { // an error is not returned, so there is something in the database
 				baseReply(msg, s, "Mark already exists with the given name.") // already exists
 				return
-			} else if err != nil {
+			} else if err != nil && code != 0 { // an error is returned, and it is NOT a no result error
 				baseReply(msg, s, err.Error()) // something went wrong
 				return
 			}
@@ -558,7 +558,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 
 			roleExists := false
 			for i := 0; i < len(roles); i++ {
-				if roles[i].ID.String() == args[1] {
+				if roles[i].ID.String() == args[2] {
 					roleExists = true
 					break
 				}
@@ -615,7 +615,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		}
 
 		if len(args) > 2 && argsl[1] == "add" {
-			roleid, err := strconv.ParseUint(args[1], 10, 64)
+			roleid, err := strconv.ParseUint(args[2], 10, 64)
 			if err != nil {
 				baseReply(msg, s, "Please provide a valid role ID.") // pretest
 				return
@@ -629,7 +629,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 
 			roleExists := false
 			for i := 0; i < len(roles); i++ {
-				if roles[i].ID.String() == args[1] {
+				if roles[i].ID.String() == args[2] {
 					roleExists = true
 					break
 				}
@@ -651,7 +651,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 			baseReply(msg, s, "Successfully added mark-removed role.")
 
 		} else if len(args) > 2 && argsl[1] == "remove" {
-			roleid, err := strconv.ParseUint(args[1], 10, 64)
+			roleid, err := strconv.ParseUint(args[2], 10, 64)
 			if err != nil {
 				baseReply(msg, s, "Please provide a valid role ID.") // pretest
 				return
