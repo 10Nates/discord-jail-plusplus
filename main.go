@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	guildid = "449043801344966666" // basically only used for auto-freeing users (too lazy to add anything to databse)
-	prefix  = "-"
+	guildid      = "449043801344966666" // basically only used for auto-freeing users (too lazy to add anything to databse)
+	prefix       = "-"
+	prefixLength = len(prefix)
 )
 
 var (
@@ -143,7 +144,7 @@ func parseCommand(msg *disgord.Message, s *disgord.Session, client *disgord.Clie
 		return
 	}
 
-	switch argsl[0][1:] {
+	switch argsl[0][prefixLength:] {
 	case "help":
 		helpReply(msg, s)
 
